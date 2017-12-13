@@ -1,10 +1,11 @@
-import { assoc, mergeAll } from 'ramda';
+import { assoc, assocPath, mergeAll } from 'ramda';
 import {
   GoalKind,
   IGoal,
   IQuery,
   ITimeBoundary,
   ITimeDuration,
+  ITimeRestrictions,
   QueryKind,
   RestrictionCondition,
 } from './data.structures';
@@ -48,6 +49,15 @@ export const timeRestriction = (
     ranges,
   };
 };
+export const timeRestrictions = (
+  type: keyof ITimeRestrictions,
+  condition: RestrictionCondition,
+  ranges: ReadonlyArray<[number, number]>
+) =>
+  assocPath(['timeRestrictions', type], timeRestriction(condition, ranges), {}) as Record<
+    'timeRestrictions',
+    ITimeRestrictions
+  >;
 export const goal = (
   kindEn: GoalKind,
   quantity: ITimeDuration,
