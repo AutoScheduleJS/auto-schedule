@@ -1,7 +1,7 @@
 import test from 'ava';
 import { has } from 'ramda';
 
-import {} from './data.structures';
+import { IAtomicQuery, IGoalQuery } from './data.structures';
 import * as Q from './index';
 
 const hasBasic = (t: any, query: Q.IQuery): void => {
@@ -34,8 +34,8 @@ test('will override id', t => {
 });
 
 test('will add start', t => {
-  const query1 = Q.queryFactory(Q.start(2));
-  const query2 = Q.queryFactory(Q.start(2, 1));
+  const query1 = Q.queryFactory<IAtomicQuery>(Q.start(2));
+  const query2 = Q.queryFactory<IAtomicQuery>(Q.start(2, 1));
   hasBasic(t, query1);
   hasBasic(t, query2);
   t.true(
@@ -47,8 +47,8 @@ test('will add start', t => {
 });
 
 test('will add end', t => {
-  const query1 = Q.queryFactory(Q.end(2));
-  const query2 = Q.queryFactory(Q.end(2, 1));
+  const query1 = Q.queryFactory<IAtomicQuery>(Q.end(2));
+  const query2 = Q.queryFactory<IAtomicQuery>(Q.end(2, 1));
   hasBasic(t, query1);
   hasBasic(t, query2);
   t.true(query1.end && query1.end.min === 2 && query1.end.max === 2 && query1.end.target === 2);
@@ -56,17 +56,18 @@ test('will add end', t => {
 });
 
 test('will add duration', t => {
-  const query1 = Q.queryFactory(Q.duration(Q.timeDuration(2)));
-  const query2 = Q.queryFactory(Q.duration(Q.timeDuration(2, 1)));
+  const query1 = Q.queryFactory<IAtomicQuery>(Q.duration(Q.timeDuration(2)));
+  const query2 = Q.queryFactory<IAtomicQuery>(Q.duration(Q.timeDuration(2, 1)));
   hasBasic(t, query1);
   hasBasic(t, query2);
   t.true(query1.duration && query1.duration.min === 2 && query1.duration.target === 2);
   t.true(query2.duration && query2.duration.min === 1 && query2.duration.target === 2);
 });
 
-test('will add timeRestriction', t => {
-  const query = Q.queryFactory(
-    Q.timeRestrictions('hour', Q.RestrictionCondition.InRange, [[0, 1]])
+test('will add timeRestriction and goal', t => {
+  const query = Q.queryFactory<IGoalQuery>(
+    Q.timeRestrictions('hour', Q.RestrictionCondition.InRange, [[0, 1]]),
+    Q.goal(Q.GoalKind.Atomic, Q.timeDuration(1), 10)
   );
   hasBasic(t, query);
   const hourTr =
@@ -75,13 +76,8 @@ test('will add timeRestriction', t => {
     hourTr && hourTr.condition === Q.RestrictionCondition.InRange && hourTr.ranges.length === 1
   );
   t.true(query.timeRestrictions && Object.keys(query.timeRestrictions).length === 1);
-});
-
-test('will add goal', t => {
-  const query = Q.queryFactory(Q.goal(Q.GoalKind.Atomic, Q.timeDuration(1), 10));
   t.true(
-    query.goal &&
-      query.goal.kind === Q.GoalKind.Atomic &&
+    query.goal.kind === Q.GoalKind.Atomic &&
       query.goal.quantity.target === 1 &&
       query.goal.time === 10
   );

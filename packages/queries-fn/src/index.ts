@@ -1,15 +1,20 @@
 import { assoc, assocPath, mergeAll } from 'ramda';
 import {
   GoalKind,
+  IAtomicQuery,
   IGoal,
-  IQuery,
+  IGoalQuery,
+  IProviderQuery,
   ITimeBoundary,
   ITimeDuration,
   ITimeRestrictions,
   QueryKind,
   RestrictionCondition,
 } from './data.structures';
+
 export * from './data.structures';
+
+export type IQuery = IAtomicQuery | IGoalQuery | IProviderQuery;
 
 export const name = (nameStr?: string): Record<'name', string> => ({ name: nameStr || 'query' });
 export const kind = (kindQK?: QueryKind): Record<'kind', QueryKind> => ({
@@ -65,6 +70,7 @@ export const goal = (
 ): Record<'goal', IGoal> => ({
   goal: { kind: kindEn, quantity, time },
 });
-export const queryFactory = (...factories: Array<Partial<IQuery>>): IQuery => {
-  return mergeAll([id(), name(), kind(), ...factories]) as IQuery;
+
+export const queryFactory = <T extends IQuery>(...factories: Array<Partial<T>>): T => {
+  return mergeAll([id(), name(), kind(), ...factories]) as T;
 };

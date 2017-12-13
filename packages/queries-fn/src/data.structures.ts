@@ -41,13 +41,24 @@ export interface ITimeRestrictions {
   readonly month?: ITimeRestriction;
 }
 
-export interface IQuery {
+export interface IBaseQuery {
   readonly id: number;
   readonly name: string;
   readonly kind: QueryKind;
-  readonly duration?: ITimeDuration;
+}
+
+export interface IGoalQuery extends IBaseQuery {
+  readonly goal: IGoal;
+  readonly timeRestrictions?: ITimeRestrictions;
+}
+
+export interface IAtomicQuery extends IBaseQuery {
   readonly start?: ITimeBoundary;
   readonly end?: ITimeBoundary;
-  readonly goal?: IGoal;
+  readonly duration?: ITimeDuration;
+}
+
+export interface IProviderQuery extends IAtomicQuery {
+  readonly provide: number;
   readonly timeRestrictions?: ITimeRestrictions;
 }
