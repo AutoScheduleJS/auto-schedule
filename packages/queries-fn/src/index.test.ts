@@ -96,3 +96,10 @@ test('will typeguard provider query', t => {
   t.true(Q.isProviderQuery(query));
   t.false(Q.isGoalQuery(query));
 });
+
+test('will typeguard atomic query', t => {
+  const query = Q.queryFactory(Q.start(1), Q.end(2));
+  t.true(Q.isAtomicQuery(query));
+  t.false(Q.isProviderQuery(query));
+  t.false(Q.isGoalQuery(query));
+});
