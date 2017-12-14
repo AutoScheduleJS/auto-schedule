@@ -82,3 +82,17 @@ test('will add timeRestriction and goal', t => {
       query.goal.time === 10
   );
 });
+
+test('will typeguard goal query', t => {
+  const query = Q.queryFactory(Q.goal(Q.GoalKind.Atomic, Q.timeDuration(1), 1));
+  t.false(Q.isAtomicQuery(query));
+  t.false(Q.isProviderQuery(query));
+  t.true(Q.isGoalQuery(query));
+});
+
+test('will typeguard provider query', t => {
+  const query = Q.queryFactory<Q.IProviderQuery>(Q.provide(1));
+  t.false(Q.isAtomicQuery(query));
+  t.true(Q.isProviderQuery(query));
+  t.false(Q.isGoalQuery(query));
+});
