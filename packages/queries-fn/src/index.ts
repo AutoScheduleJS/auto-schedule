@@ -125,3 +125,15 @@ export const goal = (
 export const queryFactory = <T extends IQuery>(...factories: Array<Partial<T>>): T => {
   return mergeAll([id(), name(), kind(), ...factories]) as T;
 };
+
+export const isGoalQuery = (query: IQuery): query is IGoalQuery => {
+  return (query as IGoalQuery).goal != null;
+}
+
+export const isProviderQuery = (query: IQuery): query is IProviderQuery => {
+  return (query as IProviderQuery).provide != null;
+}
+
+export const isAtomicQuery = (query: IQuery): query is IAtomicQuery => {
+  return !isGoalQuery(query) && !isProviderQuery(query)
+}
