@@ -88,7 +88,10 @@ export const duration = (dur: ITimeDuration): Record<'duration', ITimeDuration> 
   return assoc('duration', dur, {});
 };
 
-const timeRestriction = (
+/**
+ * Construct a `timeRestriction`
+ */
+export const timeRestriction = (
   condition: RestrictionCondition,
   ranges: ReadonlyArray<[number, number]>
 ) => {
