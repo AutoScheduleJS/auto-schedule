@@ -59,6 +59,12 @@ export interface IAtomicQuery extends IBaseQuery {
 }
 
 export interface IProviderQuery extends IAtomicQuery {
-  readonly provide: number;
+  readonly provide: IChunkIdentifier;
   readonly timeRestrictions?: ITimeRestrictions;
+}
+
+export interface IChunkIdentifier {
+  readonly queryId: number;
+  readonly materialId?: number;
+  readonly splitId?: number;
 }

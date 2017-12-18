@@ -2,6 +2,7 @@ import { assoc, assocPath, mergeAll } from 'ramda';
 import {
   GoalKind,
   IAtomicQuery,
+  IChunkIdentifier,
   IGoal,
   IGoalQuery,
   IProviderQuery,
@@ -39,7 +40,7 @@ export const id = (idNb?: number): Record<'id', number> => ({ id: idNb || 42 });
 /**
  * Construct query's `provide` property.
  */
-export const provide = (provideNb: number): Record<'provide', number> => ({ provide: provideNb });
+export const provide = (provideNb: number): Record<'provide', IChunkIdentifier> => ({ provide: { queryId: provideNb } });
 
 const tb = <T extends 'start' | 'end'>(t: T) => (
   target: number,
