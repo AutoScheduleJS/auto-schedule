@@ -1,5 +1,7 @@
 # User-state Manager
 
+[![Greenkeeper badge](https://badges.greenkeeper.io/AutoScheduleJS/userstate-manager.svg)](https://greenkeeper.io/)
+
 > Manage user-state
 
 [![Build Status](https://travis-ci.org/AutoScheduleJS/userstate-manager.svg?branch=master)](https://travis-ci.org/AutoScheduleJS/userstate-manager)
