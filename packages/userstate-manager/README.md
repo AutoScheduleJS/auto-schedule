@@ -5,7 +5,7 @@
 [![Build Status](https://travis-ci.org/AutoScheduleJS/userstate-manager.svg?branch=master)](https://travis-ci.org/AutoScheduleJS/userstate-manager)
 
 flow dependency:
-- data-io ? (fetch original state)
+- data-io ? (fetch original state) could use https://pouchdb.com/
 - mongo-like engine
 
 structure dependency:
