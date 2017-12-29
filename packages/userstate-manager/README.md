@@ -6,11 +6,10 @@
 
 needs:
 - app update state as tasks finished
-- data-io strategy to save change locally or sync with Google Drive. (use LokiJS; pouchDB hasen't serialize methods)
-- fetch original state. (main app responsibility)
+- data-io strategy to save change locally or sync with Google Drive (use LokiJS - pull, merge, push; pouchDB hasen't serialize methods)
+- fetch original state (main app responsibility)
 
 flow dependency:
-- Promise with original state
 - mongo-like engine for simulation (LokiJS)
 
 structure dependency:
@@ -21,7 +20,7 @@ structure dependency:
   - query
 
 workflow:
-data-io -> config (start, end) -> query + (potential/material) with needs -> ranges of possibilities
+promise -> config (start, end) -> query + (potential/material) with needs -> ranges of possibilities
 
 operations:
 - build state timeline
