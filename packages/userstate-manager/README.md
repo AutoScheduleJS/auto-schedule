@@ -4,9 +4,14 @@
 
 [![Build Status](https://travis-ci.org/AutoScheduleJS/userstate-manager.svg?branch=master)](https://travis-ci.org/AutoScheduleJS/userstate-manager)
 
+needs:
+- app update state as tasks finished
+- data-io strategy to save change locally or sync with Google Drive. (use LokiJS; pouchDB hasen't serialize methods)
+- fetch original state. (main app responsibility)
+
 flow dependency:
-- data-io ? (fetch original state) could use https://pouchdb.com/
-- mongo-like engine
+- Promise with original state
+- mongo-like engine for simulation (LokiJS)
 
 structure dependency:
 - queries-scheduler:
