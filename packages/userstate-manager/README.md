@@ -20,12 +20,17 @@ structure dependency:
   - query
 
 workflow:
-promise -> config (start, end) -> query + (potential/material) with needs -> ranges of possibilities
+promise -> config (start, end) -> queries (to get transformation) -> query + (potential/material) with needs
+  -> promise ranges of possibilities
+  or
+  -> promise [ranges of possibilities, errors]
+  or
+  -> promise resolve to ranges of possibilites, reject to no resources error
 
 operations:
-- build state timeline
+- build state timeline and check query's need / output to construct potential ranges.
 - check query's need that wait for this resource
 - build available mask (space where this resource is available)
-- check query's output that wait to be lacking
+- check query's output that wait to be lacking (provider's query)
 - build available mask (space where this resource is lacking)
 - intersect masks
