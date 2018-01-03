@@ -14,12 +14,20 @@ import { ITransformationRange } from '../data-structures/transformation-range.in
 import { handleTransformations } from './transformations.flow';
 
 const serializedDBToDB = (serialized: string): Loki => {
-  const db = new Loki('simul');
+  const db = new loki('simul');
   db.loadJSON(serialized);
   return db;
 };
 
 const configToRange = (config: IConfig) => ({ start: config.startDate, end: config.endDate });
+const configToTransforanges = (config: IConfig) => ({
+  end: config.endDate,
+  start: config.startDate,
+  transforms: [],
+});
+
+const rangeSatisEligible = (rangeSat: IRangeNeedSatisfaction): boolean =>
+  rangeSat.needsSatisfaction.every(satis => satis.satisfied);
 
 export const queryToStatePotentials = (baseStatePromise: Promise<string>) => (config: IConfig) => (
   queries: IQuery[]
@@ -29,15 +37,11 @@ export const queryToStatePotentials = (baseStatePromise: Promise<string>) => (co
   }
   const transform = query.transforms;
   return baseStatePromise.then(serializedDBToDB).then(db => {
-    const transfos = regroupTransforanges(
-      mergePotsAndMatsToTransforanges(queries, potentials, materials)
-    );
-    const rangesSatisfaction = transfos.map(transfoToRangesSatisfaction(db, transform));
-    const result = simplify(
-      rangesSatisfaction.filter(rangeSatis =>
-        rangeSatis.needsSatisfaction.every(satis => satis.satisfied)
-      )
-    );
+    const rangesSatisfaction = regroupTransforanges([
+      configToTransforanges(config),
+      ...mergePotsAndMatsToTransforanges(queries, potentials, materials),
+    ]).map(transfoToRangesSatisfaction(db, transform));
+    const result = simplify(rangesSatisfaction.filter(rangeSatisEligible));
     if (result.length) {
       return result;
     }

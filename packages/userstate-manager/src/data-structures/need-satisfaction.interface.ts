@@ -1,7 +1,8 @@
+import { ITaskTransformNeed } from '@autoschedule/queries-fn';
 import { IRange } from '@autoschedule/queries-scheduler';
 
 export interface INeedSatisfaction {
-  need: any;
+  need: ITaskTransformNeed;
   satisfied: boolean;
 }
 
