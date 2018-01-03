@@ -13,6 +13,35 @@ export enum RestrictionCondition {
   OutRange,
 }
 
+export interface ITaskTransformNeed {
+  readonly collectionName: string;
+  readonly ref: string; // Unique ID
+  readonly find: any;
+  readonly quantity: number;
+}
+
+export interface IUpdateObject {
+  readonly property: string;
+  readonly value: string;
+  readonly arrayMethod?: 'Push' | 'Delete';
+}
+
+export interface ITaskTransformUpdate {
+  readonly ref: string;
+  readonly update: ReadonlyArray<IUpdateObject>;
+}
+
+export interface ITaskTransformInsert {
+  readonly collectionName: string;
+  readonly doc: any;
+}
+
+export interface ITransformation {
+  readonly needs: ReadonlyArray<ITaskTransformNeed>;
+  readonly updates: ReadonlyArray<ITaskTransformUpdate>;
+  readonly inserts: ReadonlyArray<ITaskTransformInsert>;
+}
+
 export interface IGoal {
   readonly kind: GoalKind;
   readonly quantity: ITimeDuration;
@@ -45,6 +74,7 @@ export interface IBaseQuery {
   readonly id: number;
   readonly name: string;
   readonly kind: QueryKind;
+  readonly transforms?: ITransformation;
 }
 
 export interface IGoalQuery extends IBaseQuery {

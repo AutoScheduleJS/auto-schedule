@@ -83,6 +83,15 @@ test('will add timeRestriction and goal', t => {
   );
 });
 
+test('will add transforms', t => {
+  const query = Q.queryFactory(Q.transforms([], [], []));
+  hasBasic(t, query);
+  t.true(query.transforms != null);
+  t.is(query.transforms && query.transforms.needs.length, 0);
+  t.is(query.transforms && query.transforms.updates.length, 0);
+  t.is(query.transforms && query.transforms.inserts.length, 0);
+});
+
 test('will typeguard goal query', t => {
   const query = Q.queryFactory(Q.goal(Q.GoalKind.Atomic, Q.timeDuration(1), 1));
   t.false(Q.isAtomicQuery(query));

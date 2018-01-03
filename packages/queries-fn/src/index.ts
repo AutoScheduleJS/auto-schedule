@@ -6,9 +6,13 @@ import {
   IGoal,
   IGoalQuery,
   IProviderQuery,
+  ITaskTransformInsert,
+  ITaskTransformNeed,
+  ITaskTransformUpdate,
   ITimeBoundary,
   ITimeDuration,
   ITimeRestrictions,
+  ITransformation,
   QueryKind,
   RestrictionCondition,
 } from './data.structures';
@@ -40,7 +44,9 @@ export const id = (idNb?: number): Record<'id', number> => ({ id: idNb || 42 });
 /**
  * Construct query's `provide` property.
  */
-export const provide = (provideNb: number): Record<'provide', IChunkIdentifier> => ({ provide: { queryId: provideNb } });
+export const provide = (provideNb: number): Record<'provide', IChunkIdentifier> => ({
+  provide: { queryId: provideNb },
+});
 
 const tb = <T extends 'start' | 'end'>(t: T) => (
   target: number,
@@ -116,6 +122,21 @@ export const timeRestrictions = (
   >;
 
 /**
+ * Construct query's `transforms` property
+ */
+export const transforms = (
+  needs: ReadonlyArray<ITaskTransformNeed>,
+  updates: ReadonlyArray<ITaskTransformUpdate>,
+  inserts: ReadonlyArray<ITaskTransformInsert>
+): Record<'transforms', ITransformation> => ({
+  transforms: {
+    inserts,
+    needs,
+    updates,
+  },
+});
+
+/**
  * Construct query's `goal` property
  */
 export const goal = (
@@ -137,12 +158,12 @@ export const queryFactory = <T extends IQuery>(...factories: Array<Partial<T>>):
 
 export const isGoalQuery = (query: IQuery): query is IGoalQuery => {
   return (query as IGoalQuery).goal != null;
-}
+};
 
 export const isProviderQuery = (query: IQuery): query is IProviderQuery => {
   return (query as IProviderQuery).provide != null;
-}
+};
 
 export const isAtomicQuery = (query: IQuery): query is IAtomicQuery => {
-  return !isGoalQuery(query) && !isProviderQuery(query)
-}
+  return !isGoalQuery(query) && !isProviderQuery(query);
+};
