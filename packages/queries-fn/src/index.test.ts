@@ -83,7 +83,7 @@ test('will add timeRestriction and goal', t => {
   );
 });
 
-test('will add transforms', t => {
+test('will add empty transforms', t => {
   const query = Q.queryFactory(Q.transforms([], [], []));
   hasBasic(t, query);
   t.true(query.transforms != null);
@@ -91,6 +91,17 @@ test('will add transforms', t => {
   t.is(query.transforms && query.transforms.updates.length, 0);
   t.is(query.transforms && query.transforms.inserts.length, 0);
 });
+
+test('will add needs transform', t => {
+  const query = Q.queryFactory(Q.transforms([Q.need()], [], []));
+  hasBasic(t, query);
+  t.true(query.transforms != null);
+  t.is(query.transforms && query.transforms.needs.length, 1);
+  t.is(query.transforms && query.transforms.needs[0].collectionName, 'test');
+  t.true(query.transforms && query.transforms.needs[0].find != null);
+  t.is(query.transforms && query.transforms.needs[0].quantity, 1);
+  t.is(query.transforms && query.transforms.needs[0].ref, '1');
+})
 
 test('will typeguard goal query', t => {
   const query = Q.queryFactory(Q.goal(Q.GoalKind.Atomic, Q.timeDuration(1), 1));
