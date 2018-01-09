@@ -17,6 +17,9 @@ const config = {
 		extensions: ['.js', '.ts', '.json'],
 		alias: rxPaths(),
 	},
+	node: {
+		fs: 'empty',
+	},
 	devtool: isProd ? 'hidden-source-map' : 'cheap-module-eval-source-map',
 	plugins: [
 		new webpack.DefinePlugin({
