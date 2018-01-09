@@ -40,6 +40,7 @@ export interface ITransformation {
   readonly needs: ReadonlyArray<ITaskTransformNeed>;
   readonly updates: ReadonlyArray<ITaskTransformUpdate>;
   readonly inserts: ReadonlyArray<ITaskTransformInsert>;
+  readonly deletes: ReadonlyArray<string>;
 }
 
 export interface IGoal {

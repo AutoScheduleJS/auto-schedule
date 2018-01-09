@@ -128,15 +128,15 @@ export const need = (
   collectionName: string = 'test',
   find: any = {},
   quantity: number = 1,
-  ref: string = '1',
+  ref: string = '1'
 ): ITaskTransformNeed => {
   return {
     collectionName,
     find,
     quantity,
     ref,
-  }
-}
+  };
+};
 
 /**
  * Construct query's `transforms` property
@@ -147,6 +147,7 @@ export const transforms = (
   inserts: ReadonlyArray<ITaskTransformInsert>
 ): Record<'transforms', ITransformation> => ({
   transforms: {
+    deletes: needs.filter(n => updates.every(update => update.ref !== n.ref)).map(n => n.ref),
     inserts,
     needs,
     updates,

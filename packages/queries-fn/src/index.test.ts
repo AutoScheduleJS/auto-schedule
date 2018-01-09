@@ -101,7 +101,15 @@ test('will add needs transform', t => {
   t.true(query.transforms && query.transforms.needs[0].find != null);
   t.is(query.transforms && query.transforms.needs[0].quantity, 1);
   t.is(query.transforms && query.transforms.needs[0].ref, '1');
-})
+});
+
+test('will set correct delete transforms', t => {
+  const query = Q.queryFactory(Q.transforms([Q.need('a', {}, 1, 'aa'), Q.need('b', {}, 1, 'bb')], [{ ref: 'aa', update: []}], []));
+  hasBasic(t, query);
+  t.true(query.transforms != null);
+  t.is(query.transforms && query.transforms.deletes.length, 1);
+  t.is(query.transforms && query.transforms.deletes[0], 'bb');
+});
 
 test('will typeguard goal query', t => {
   const query = Q.queryFactory(Q.goal(Q.GoalKind.Atomic, Q.timeDuration(1), 1));
