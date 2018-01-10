@@ -2,20 +2,42 @@ import {
   ITaskTransformInsert,
   ITaskTransformNeed,
   ITaskTransformUpdate,
-  ITransformation,
   IUpdateObject,
 } from '@autoschedule/queries-fn';
-import { assocPath, pathOr, repeat } from 'ramda';
+import { assocPath, pathOr, pipe, repeat } from 'ramda';
 
 import { INeedResource } from '../data-structures/need-resource.interface';
+import { ITransformationTime } from '../data-structures/transformation-time.interface';
 
-export const handleTransformations = (db: Loki, transform: ITransformation[]): void => {
-  transform.forEach(tr => {
-    const needResources = handleNeeds(db, tr.needs);
-    handleUpdatesAndDelete(db, needResources, tr.updates);
-    handleInserts(db, tr.inserts);
-  });
-  return;
+export const handleTransformations = (
+  db: Loki,
+  transforms: ITransformationTime,
+  needResources: INeedResource[]
+): INeedResource[] => {
+  return handleOutputTransformations(db, transforms, [
+    ...needResources,
+    ...handleInputTransformations(db, transforms),
+  ]);
+};
+
+const handleInputTransformations = (db: Loki, transforms: ITransformationTime): INeedResource[] => {
+  if (transforms.needs == null) {
+    return [];
+  }
+  return handleNeeds(db, transforms.needs);
+};
+
+export const handleOutputTransformations = (
+  db: Loki,
+  transforms: ITransformationTime,
+  needResources: INeedResource[]
+): INeedResource[] => {
+  const newNeedResources = pipe(
+    handleUpdates(db, transforms.updates),
+    handleDeletes(db, transforms.deletes)
+  )(needResources);
+  handleInserts(db, transforms.inserts);
+  return newNeedResources;
 };
 
 const handleInserts = (db: Loki, inserts: ReadonlyArray<ITaskTransformInsert>): void => {
@@ -23,7 +45,7 @@ const handleInserts = (db: Loki, inserts: ReadonlyArray<ITaskTransformInsert>): 
     const col = getOrCreateCollection(db, insert.collectionName);
     col.insert(insert.doc);
   });
-}
+};
 
 const handleNeeds = (db: Loki, needs: ReadonlyArray<ITaskTransformNeed>): INeedResource[] => {
   return needs.map(need => {
@@ -31,71 +53,94 @@ const handleNeeds = (db: Loki, needs: ReadonlyArray<ITaskTransformNeed>): INeedR
     if (!col) {
       return need;
     }
-    const docs: LokiObj[] = col.find(need.find);
+    const allDocs: LokiObj[] = col.find(need.find);
+    const docs = allDocs.slice(0, Math.min(need.quantity, allDocs.length));
+    col.remove(docs);
     return {
       ...need,
-      docs: docs.slice(0, Math.min(need.quantity, docs.length)),
+      docs,
     };
   });
 };
 
-const handleUpdatesAndDelete = (
-  db: Loki,
-  needResources: INeedResource[],
-  updates: ReadonlyArray<ITaskTransformUpdate>
-): void => {
-  needResources.forEach(needResource => {
+const handleUpdates = (db: Loki, updates: ReadonlyArray<ITaskTransformUpdate>) => (
+  needResources: INeedResource[]
+): INeedResource[] => {
+  return needResources.map(needResource => {
     const update = updates.find(u => u.ref === needResource.ref);
-    const col = db.getCollection(needResource.collectionName);
-    if (update == null) {
-      return handleDelete(col, needResource.docs);
+    if (!update) {
+      return needResource;
     }
+    const col = db.getCollection(needResource.collectionName);
     if (!needResource.docs) {
       return handleUpdatesFromNil(db, needResource, update);
     }
-    handleUpdate(col, needResource, update.update);
+    return handleUpdate(col, needResource, update.update);
   });
 };
 
-const handleDelete = (collection: Collection<any>, docs: LokiObj[] | undefined): void => {
-  if (!docs) {
-    return;
+const handleDeletes = (db: Loki, deletes: ReadonlyArray<string>) => (
+  needResources: INeedResource[]
+): INeedResource[] => {
+  return needResources.map(needResource => {
+    const del = deletes.find(d => d === needResource.ref);
+    if (!del) {
+      return needResource;
+    }
+    const col = db.getCollection(needResource.collectionName);
+    return handleDelete(col, needResource, del);
+  });
+};
+
+const handleDelete = (
+  collection: Collection<any>,
+  needResource: INeedResource,
+  _: string
+): INeedResource => {
+  if (!needResource.docs) {
+    return needResource;
   }
-  docs.forEach(doc => collection.remove(doc));
+  needResource.docs.forEach(doc => collection.remove(doc));
+  return { ...needResource, docs: undefined };
 };
 
 const getOrCreateCollection = (db: Loki, name: string): Collection<any> => {
   return db.getCollection(name) || db.addCollection(name);
-}
+};
 
 const handleUpdatesFromNil = (
   db: Loki,
-  need: ITaskTransformNeed,
+  need: INeedResource,
   update: ITaskTransformUpdate
-): void => {
+): INeedResource => {
   const col = getOrCreateCollection(db, need.collectionName);
   const doc: any = update.update.reduce((obj: any, method, {}) => updateDoc({ ...obj }, method));
-  col.insert(repeat(doc, need.quantity));
+  return {
+    ...need,
+    docs: col.insert(repeat(doc, need.quantity)),
+  };
 };
 
 const handleUpdate = (
   collection: Collection<any>,
   need: INeedResource,
   updates: ReadonlyArray<IUpdateObject>
-): void => {
+): INeedResource => {
   const docs = need.docs as LokiObj[];
   const updated = docs.map(doc =>
     updates.reduce((obj: any, update) => updateDoc(obj, update), { ...doc })
   );
-  collection.update(updated);
+  const firsts = collection.insert(updated);
   if (need.quantity > docs.length) {
-    collection.insert(repeat(cleanLokiDoc(updated[0]), need.quantity - docs.length));
+    const rests = collection.insert(repeat(cleanLokiDoc(updated[0]), need.quantity - docs.length));
+    return { ...need, docs: [...firsts, ...rests] };
   }
+  return { ...need, docs: firsts };
 };
 
 const cleanLokiDoc = (doc: LokiObj): any => {
   return { ...doc, $loki: undefined, meta: undefined };
-}
+};
 
 const updateDoc = (doc: any, method: IUpdateObject): any => {
   const path = method.property.split('.');
