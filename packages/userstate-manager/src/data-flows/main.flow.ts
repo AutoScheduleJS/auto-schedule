@@ -1,4 +1,10 @@
-import { IQuery, ITaskTransformNeed, ITransformation } from '@autoschedule/queries-fn';
+import {
+  IQuery,
+  ITaskTransformInsert,
+  ITaskTransformNeed,
+  ITaskTransformUpdate,
+  ITransformation,
+} from '@autoschedule/queries-fn';
 import { IMaterial, IPotentiality, IRange } from '@autoschedule/queries-scheduler';
 import { simplify } from 'intervals-fn';
 import * as loki from 'lokijs';
@@ -7,9 +13,12 @@ import { groupWith, prop, sortBy, unfold, unnest } from 'ramda';
 import { IConfig } from '../data-structures/config.interface';
 import { INeedResource } from '../data-structures/need-resource.interface';
 import {
+  IInsertSatisfaction,
   INeedSatisfaction,
-  IRangeNeedSatisfaction,
-} from '../data-structures/need-satisfaction.interface';
+  IRangeQuerySatisfaction,
+  ISatisfied,
+  IUpdateSatisfaction,
+} from '../data-structures/query-satisfaction.interface';
 import { ITransformationTime } from '../data-structures/transformation-time.interface';
 
 import { handleTransformations } from './transformations.flow';
@@ -26,8 +35,12 @@ const configToTransforanges = (config: IConfig): ITransformationTime[] => [
   { deletes: [], time: config.startDate, inserts: [], needs: [], updates: [] },
 ];
 
-const rangeSatisEligible = (rangeSat: IRangeNeedSatisfaction): boolean =>
-  rangeSat.needsSatisfaction.every(satis => satis.satisfied);
+const areSatisfied = (satisfied: ISatisfied[]) => satisfied.every(satis => satis.satisfied);
+
+const rangeSatisEligible = (rangeSat: IRangeQuerySatisfaction): boolean =>
+  areSatisfied(rangeSat.needSatisfactions) &&
+  areSatisfied(rangeSat.insertSatisfactions) &&
+  areSatisfied(rangeSat.updateSatisfactions);
 
 export const queryToStatePotentials = (baseStatePromise: Promise<string>) => (config: IConfig) => (
   queries: IQuery[]
@@ -35,18 +48,18 @@ export const queryToStatePotentials = (baseStatePromise: Promise<string>) => (co
   if (!query.transforms) {
     return Promise.resolve([configToRange(config)]);
   }
-  const needs = query.transforms.needs;
+  const transforms = query.transforms;
   return baseStatePromise.then(serializedDBToDB).then(db => {
     const timeTransfo = regroupTransfoTime(
       sortByTime([
         ...configToTransforanges(config),
         ...mergePotsAndMatsToTransforanges(queries, potentials, materials),
       ])
-    ).map(a => a.reduce(reduceTransfoGroup)); /*.map(transfoToRangesSatisfaction(db, transform)); */
-    const rangesSatisfaction = unfold(rangeSatisfactionUnfolder(db, needs, timeTransfo), [
-      [],
-      0,
-    ] as [INeedResource[], number]);
+    ).map(a => a.reduce(reduceTransfoGroup));
+    const rangesSatisfaction = unfold(
+      rangeSatisfactionUnfolder(db, transforms, timeTransfo),
+      [[], 0] as [INeedResource[], number]
+    );
     const result = simplify(rangesSatisfaction.filter(rangeSatisEligible));
     if (result.length) {
       return result;
@@ -66,30 +79,51 @@ const reduceTransfoGroup = (a: ITransformationTime, b: ITransformationTime) => (
 
 const rangeSatisfactionUnfolder = (
   db: Loki,
-  needs: ReadonlyArray<ITaskTransformNeed>,
+  transform: ITransformation,
   timeTransfo: ITransformationTime[]
 ) => ([inputResources, transfoIndex]: [INeedResource[], number]):
   | false
-  | [IRangeNeedSatisfaction, [ITaskTransformNeed[], number]] => {
+  | [IRangeQuerySatisfaction, [ITaskTransformNeed[], number]] => {
   if (transfoIndex + 1 >= timeTransfo.length) {
     return false;
   }
   const firstTransfo = timeTransfo[transfoIndex];
   const afterInputResources = handleTransformations(db, firstTransfo, inputResources);
-  const result = {
+  const result: IRangeQuerySatisfaction = {
     end: timeTransfo[transfoIndex + 1].time,
-    needsSatisfaction: needs.map((need): INeedSatisfaction => {
-      const collection = db.getCollection(need.collectionName);
-      if (!collection) {
-        return { need, satisfied: false };
-      }
-      const docs = collection.find(need.find);
-      return { need, satisfied: docs.length >= need.quantity };
-    }),
+    insertSatisfactions: computeInsertSatisfaction(db, transform.inserts),
+    needSatisfactions: computeNeedSatisfaction(db, transform.needs),
     start: timeTransfo[transfoIndex].time,
+    updateSatisfactions: computeUpdateSatisfaction(db, transform.updates),
   };
   return [result, [afterInputResources, transfoIndex + 1]];
 };
+
+const computeInsertSatisfaction = (
+  db: Loki,
+  inserts: ReadonlyArray<ITaskTransformInsert>
+): IInsertSatisfaction[] => [];
+
+const computeUpdateSatisfaction = (
+  db: Loki,
+  updates: ReadonlyArray<ITaskTransformUpdate>
+): IUpdateSatisfaction[] => [];
+
+const computeNeedSatisfaction = (
+  db: Loki,
+  needs: ReadonlyArray<ITaskTransformNeed>
+): INeedSatisfaction[] =>
+  needs.map(need => {
+    if (!need.wait) {
+      return { need, satisfied: true };
+    }
+    const collection = db.getCollection(need.collectionName);
+    if (!collection) {
+      return { need, satisfied: false };
+    }
+    const docs = collection.find(need.find);
+    return { need, satisfied: docs.length >= need.quantity };
+  });
 
 const sortByTime = sortBy<ITransformationTime>(prop('time'));
 
@@ -106,7 +140,11 @@ const mergePotsAndMatsToTransforanges = (
   );
 };
 
-const placeToTransfoTime = (transfo: ITransformation, start: number, end: number): ITransformationTime[] => [
+const placeToTransfoTime = (
+  transfo: ITransformation,
+  start: number,
+  end: number
+): ITransformationTime[] => [
   {
     deletes: transfo.deletes,
     inserts: [],

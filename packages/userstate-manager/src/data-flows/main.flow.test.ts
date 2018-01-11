@@ -22,7 +22,7 @@ test('will return config when no needs', async t => {
 });
 
 test("will throw when needs aren't satisfied", t => {
-  const query = Q.queryFactory(Q.transforms([Q.need()], [], []));
+  const query = Q.queryFactory(Q.transforms([Q.need(true)], [], []));
   return shortQueryToStatePots([])(query, [], []).then(
     () => t.fail('should not pass'),
     (e: IRangeNeedSatisfaction[]) => {
@@ -30,8 +30,8 @@ test("will throw when needs aren't satisfied", t => {
       t.is(e.length, 1);
       t.is(e[0].start, 0);
       t.is(e[0].end, 5);
-      t.is(e[0].needsSatisfaction.length, 1);
-      t.is(e[0].needsSatisfaction[0].need.collectionName, 'test');
+      t.is(e[0].needSatisfactions.length, 1);
+      t.is(e[0].needSatisfactions[0].need.collectionName, 'test');
     }
   );
 });
@@ -39,7 +39,7 @@ test("will throw when needs aren't satisfied", t => {
 test('will find space where resource is available from potentiality', async t => {
   const query = Q.queryFactory(
     Q.duration(Q.timeDuration(1)),
-    Q.transforms([Q.need('test', { response: 42 }, 1)], [], [])
+    Q.transforms([Q.need(true, 'test', { response: 42 }, 1)], [], [])
   );
   const provide = Q.queryFactory(
     Q.id(66),
@@ -76,7 +76,7 @@ test('will find space where resource is available from potentiality', async t =>
 test('will find space where resource is available from material', async t => {
   const query = Q.queryFactory(
     Q.duration(Q.timeDuration(1)),
-    Q.transforms([Q.need('test', { response: 42 }, 1)], [], [])
+    Q.transforms([Q.need(true, 'test', { response: 42 }, 1)], [], [])
   );
   const provide = Q.queryFactory(
     Q.id(66),
@@ -109,7 +109,7 @@ test('will find space where resource is available from material', async t => {
 test('will find space from two providers (potentials) with space between provider', async t => {
   const query = Q.queryFactory(
     Q.duration(Q.timeDuration(1)),
-    Q.transforms([Q.need('titi', { response: 42 }, 1), Q.need('toto', { response: 66 }, 1)], [], [])
+    Q.transforms([Q.need(true, 'titi', { response: 42 }, 1), Q.need(true, 'toto', { response: 66 }, 1)], [], [])
   );
   const provideTiti = Q.queryFactory(
     Q.id(42),
@@ -149,7 +149,7 @@ test('will find space from two providers (potentials) with space between provide
 test('will find space from two providers (potentials) without space between provider', async t => {
   const query = Q.queryFactory(
     Q.duration(Q.timeDuration(1)),
-    Q.transforms([Q.need('titi', { response: 42 }, 1), Q.need('toto', { response: 66 }, 1)], [], [])
+    Q.transforms([Q.need(true, 'titi', { response: 42 }, 1), Q.need(true, 'toto', { response: 66 }, 1)], [], [])
   );
   const provideTiti = Q.queryFactory(
     Q.id(42),
@@ -193,12 +193,12 @@ test('will find space thanks to update provider (potential)', async t => {
   const query = Q.queryFactory(
     Q.id(1),
     Q.duration(Q.timeDuration(1)),
-    Q.transforms([Q.need('titi', { response: '42' }, 1)], [], [])
+    Q.transforms([Q.need(true, 'titi', { response: '42' }, 1)], [], [])
   );
   const updateTiti = Q.queryFactory(
     Q.id(42),
     Q.transforms(
-      [Q.need('titi', { response: '66' }, 1, 'ref')],
+      [Q.need(false, 'titi', { response: '66' }, 1, 'ref')],
       [{ ref: 'ref', update: [{ property: 'response', value: '42' }] }],
       []
     )
@@ -223,4 +223,50 @@ test('will find space thanks to update provider (potential)', async t => {
   t.is(result.length, 1);
   t.is(result[0].start, 4);
   t.is(result[0].end, 10);
+});
+
+test("will throw when provider's output (in wait mode) isn't needed", t => {
+  const query = Q.queryFactory(
+    Q.transforms([], [], [{ collectionName: 'titi', doc: { useless: true }, wait: true }])
+  );
+  return shortQueryToStatePots([])(query, [], []).then(
+    () => t.fail('should not pass'),
+    (e: IRangeNeedSatisfaction[]) => {
+      t.true(Array.isArray(e));
+      t.is(e.length, 1);
+      t.is(e[0].start, 0);
+      t.is(e[0].end, 5);
+      t.is(e[0].needsSatisfaction.length, 1);
+      t.is(e[0].needsSatisfaction[0].need.collectionName, 'titi');
+    }
+  );
+});
+
+test('will find space where resource (in wait mode) is lacking', async t => {
+  const query = Q.queryFactory(
+    Q.id(1),
+    Q.duration(Q.timeDuration(1)),
+    Q.transforms([Q.need(false, 'titi', { response: '42' }, 1)], [], [])
+  );
+  const updateTiti = Q.queryFactory(
+    Q.id(42),
+    Q.transforms([], [], [{ collectionName: 'titi', doc: { response: '42' }, wait: true }])
+  );
+  const result = await mediumQueryToStatePots([query, updateTiti])(
+    updateTiti,
+    [
+      {
+        duration: Q.timeDuration(1),
+        isSplittable: false,
+        places: [{ end: 7, start: 6 }],
+        potentialId: 1,
+        pressure: 1,
+        queryId: 1,
+      },
+    ],
+    []
+  );
+  t.is(result.length, 1);
+  t.is(result[0].start, 0);
+  t.is(result[0].end, 6);
 });
