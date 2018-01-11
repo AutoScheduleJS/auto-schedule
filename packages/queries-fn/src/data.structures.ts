@@ -18,6 +18,7 @@ export interface ITaskTransformNeed {
   readonly ref: string; // Unique ID
   readonly find: any;
   readonly quantity: number;
+  readonly wait?: boolean;
 }
 
 export interface IUpdateObject {
@@ -29,11 +30,13 @@ export interface IUpdateObject {
 export interface ITaskTransformUpdate {
   readonly ref: string;
   readonly update: ReadonlyArray<IUpdateObject>;
+  readonly wait?: boolean;
 }
 
 export interface ITaskTransformInsert {
   readonly collectionName: string;
   readonly doc: any;
+  readonly wait?: boolean;
 }
 
 export interface ITransformation {

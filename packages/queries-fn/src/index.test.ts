@@ -104,7 +104,7 @@ test('will add needs transform', t => {
 });
 
 test('will set correct delete transforms', t => {
-  const query = Q.queryFactory(Q.transforms([Q.need('a', {}, 1, 'aa'), Q.need('b', {}, 1, 'bb')], [{ ref: 'aa', update: []}], []));
+  const query = Q.queryFactory(Q.transforms([Q.need(true, 'a', {}, 1, 'aa'), Q.need(false, 'b', {}, 1, 'bb')], [{ ref: 'aa', update: []}], []));
   hasBasic(t, query);
   t.true(query.transforms != null);
   t.is(query.transforms && query.transforms.deletes.length, 1);

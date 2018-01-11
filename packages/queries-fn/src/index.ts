@@ -125,16 +125,18 @@ export const timeRestrictions = (
  * Construct a `taskTransformNeed`
  */
 export const need = (
+  wait: boolean = false,
   collectionName: string = 'test',
   find: any = {},
   quantity: number = 1,
-  ref: string = '1'
+  ref: string = '1',
 ): ITaskTransformNeed => {
   return {
     collectionName,
     find,
     quantity,
     ref,
+    wait,
   };
 };
 
