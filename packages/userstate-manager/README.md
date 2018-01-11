@@ -9,6 +9,7 @@ needs:
 - app update state as tasks finished
 - data-io strategy to save change locally or sync with Google Drive (use LokiJS - pull, merge, push; pouchDB hasen't serialize methods)
 - fetch original state (main app responsibility)
+- lifespan handle: docs can specify an expiration date. Needs can query for docs with an expiration date greater than the given one. Provider can provide docs with specified expiration date, and have a minimal start. Thus, lifespan isn't handle by userstate-manager.
 
 flow dependency:
 - mongo-like engine for simulation (LokiJS)
