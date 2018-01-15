@@ -5,7 +5,7 @@ import * as loki from 'lokijs';
 import { queryToStatePotentials } from './main.flow';
 
 import { IConfig } from '../data-structures/config.interface';
-import { IRangeNeedSatisfaction } from '../data-structures/need-satisfaction.interface';
+import { ITransformSatisfaction } from '../data-structures/transform-satisfaction.interface';
 
 const shortConfig: IConfig = { startDate: 0, endDate: 5 };
 const mediumConfig: IConfig = { startDate: 0, endDate: 10 };
@@ -25,13 +25,13 @@ test("will throw when needs aren't satisfied", t => {
   const query = Q.queryFactory(Q.transforms([Q.need(true)], [], []));
   return shortQueryToStatePots([])(query, [], []).then(
     () => t.fail('should not pass'),
-    (e: IRangeNeedSatisfaction[]) => {
+    (e: ITransformSatisfaction[]) => {
       t.true(Array.isArray(e));
       t.is(e.length, 1);
-      t.is(e[0].start, 0);
-      t.is(e[0].end, 5);
-      t.is(e[0].needSatisfactions.length, 1);
-      t.is(e[0].needSatisfactions[0].need.collectionName, 'test');
+      t.is(e[0].range.start, 0);
+      t.is(e[0].range.end, 5);
+      const transform = e[0].transform as Q.ITaskTransformNeed;
+      t.is(transform.collectionName, 'test');
     }
   );
 });
@@ -231,38 +231,65 @@ test("will throw when provider's output (in wait mode) isn't needed", t => {
   );
   return shortQueryToStatePots([])(query, [], []).then(
     () => t.fail('should not pass'),
-    (e: IRangeNeedSatisfaction[]) => {
+    (e: ITransformSatisfaction[]) => {
       t.true(Array.isArray(e));
       t.is(e.length, 1);
-      t.is(e[0].start, 0);
-      t.is(e[0].end, 5);
-      t.is(e[0].needsSatisfaction.length, 1);
-      t.is(e[0].needsSatisfaction[0].need.collectionName, 'titi');
+      t.is(e[0].range.start, 0);
+      t.is(e[0].range.end, 0);
+      const transform = e[0].transform as Q.ITaskTransformNeed;
+      t.is(transform.collectionName, 'titi');
     }
   );
 });
 
 test('will find space where resource (in wait mode) is lacking', async t => {
-  const query = Q.queryFactory(
+  const query1 = Q.queryFactory(
     Q.id(1),
     Q.duration(Q.timeDuration(1)),
     Q.transforms([Q.need(false, 'titi', { response: '42' }, 1)], [], [])
   );
+  const query2 = Q.queryFactory(
+    Q.id(2),
+    Q.duration(Q.timeDuration(1)),
+    Q.transforms([Q.need(false, 'titi', { response: '66' }, 1)], [], [])
+  );
+  const query3 = Q.queryFactory(
+    Q.id(3),
+    Q.duration(Q.timeDuration(1)),
+    Q.transforms([Q.need(false, 'titi', { response: '33' }, 1)], [], [])
+  );
   const updateTiti = Q.queryFactory(
     Q.id(42),
-    Q.transforms([], [], [{ collectionName: 'titi', doc: { response: '42' }, wait: true }])
+    Q.transforms([], [], [{ collectionName: 'titi', doc: { response: '66' }, wait: true }])
   );
-  const result = await mediumQueryToStatePots([query, updateTiti])(
+  const result = await mediumQueryToStatePots([query1, query2, query3, updateTiti])(
     updateTiti,
     [
+      {
+        duration: Q.timeDuration(1),
+        isSplittable: false,
+        places: [{ end: 5, start: 4 }],
+        potentialId: 1,
+        pressure: 1,
+        queryId: 1,
+      },
       {
         duration: Q.timeDuration(1),
         isSplittable: false,
         places: [{ end: 7, start: 6 }],
         potentialId: 1,
         pressure: 1,
+        queryId: 2,
+      },
+      {
+        duration: Q.timeDuration(1),
+        isSplittable: false,
+        places: [{ end: 9, start: 8 }],
+        potentialId: 1,
+        pressure: 1,
         queryId: 1,
       },
+
     ],
     []
   );

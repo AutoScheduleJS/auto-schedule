@@ -1,27 +1,16 @@
-import {
-  IQuery,
-  ITaskTransformInsert,
-  ITaskTransformNeed,
-  ITaskTransformUpdate,
-  ITransformation,
-} from '@autoschedule/queries-fn';
+import { IQuery, ITransformation } from '@autoschedule/queries-fn';
 import { IMaterial, IPotentiality, IRange } from '@autoschedule/queries-scheduler';
-import { simplify } from 'intervals-fn';
+import { intersect, simplify } from 'intervals-fn';
 import * as loki from 'lokijs';
-import { groupWith, prop, sortBy, unfold, unnest } from 'ramda';
+import { groupWith, prop, sortBy, unnest } from 'ramda';
 
 import { IConfig } from '../data-structures/config.interface';
-import { INeedResource } from '../data-structures/need-resource.interface';
-import {
-  IInsertSatisfaction,
-  INeedSatisfaction,
-  IRangeQuerySatisfaction,
-  ISatisfied,
-  IUpdateSatisfaction,
-} from '../data-structures/query-satisfaction.interface';
-import { ITransformationTime } from '../data-structures/transformation-time.interface';
+import { IRangeNeedSatisfaction } from '../data-structures/need-satisfaction.interface';
+import { IRefDoc } from '../data-structures/ref-doc.interface';
+import { ITransformSatisfaction } from '../data-structures/transform-satisfaction.interface';
+import { allTransfo, ITransformationTime } from '../data-structures/transformation-time.interface';
 
-import { handleTransformations } from './transformations.flow';
+import { compteRangeSatisfaction, computeOutputSatisfaction } from './satisfactions.flow';
 
 const serializedDBToDB = (serialized: string): Loki => {
   const db = new loki('simul');
@@ -34,13 +23,8 @@ const configToTransforanges = (config: IConfig): ITransformationTime[] => [
   { deletes: [], time: config.endDate, inserts: [], needs: [], updates: [] },
   { deletes: [], time: config.startDate, inserts: [], needs: [], updates: [] },
 ];
-
-const areSatisfied = (satisfied: ISatisfied[]) => satisfied.every(satis => satis.satisfied);
-
-const rangeSatisEligible = (rangeSat: IRangeQuerySatisfaction): boolean =>
-  areSatisfied(rangeSat.needSatisfactions) &&
-  areSatisfied(rangeSat.insertSatisfactions) &&
-  areSatisfied(rangeSat.updateSatisfactions);
+const rangeSatisEligible = (rangeSat: IRangeNeedSatisfaction): boolean =>
+  rangeSat.needSatisfactions.every(sat => sat.satisfied);
 
 export const queryToStatePotentials = (baseStatePromise: Promise<string>) => (config: IConfig) => (
   queries: IQuery[]
@@ -50,25 +34,104 @@ export const queryToStatePotentials = (baseStatePromise: Promise<string>) => (co
   }
   const transforms = query.transforms;
   return baseStatePromise.then(serializedDBToDB).then(db => {
-    const timeTransfo = regroupTransfoTime(
-      sortByTime([
-        ...configToTransforanges(config),
-        ...mergePotsAndMatsToTransforanges(queries, potentials, materials),
-      ])
-    ).map(a => a.reduce(reduceTransfoGroup));
-    const rangesSatisfaction = unfold(
-      rangeSatisfactionUnfolder(db, transforms, timeTransfo),
-      [[], 0] as [INeedResource[], number]
+    const timeTransfo = regroupTransfoTime(config, queries, potentials, materials);
+    const [needSatis, needResources] = compteRangeSatisfaction(db, transforms, timeTransfo);
+    const shrinkSpaces = computeShrinkSpace(potentials, materials);
+    const insertSatis = computeOutputSatisfaction(
+      configToRange(config),
+      rangeNeedSatisToDocs(needSatis),
+      needResources,
+      transforms,
+      idToShrinkSpace(shrinkSpaces)
     );
-    const result = simplify(rangesSatisfaction.filter(rangeSatisEligible));
+    const insertRange =
+      transforms.inserts.length > 0 ? insertSatis.map(s => s.range) : configToRange(config);
+    const result = intersect(simplify(needSatis.filter(rangeSatisEligible)), insertRange);
     if (result.length) {
       return result;
     }
-    throw rangesSatisfaction;
+    throw insatisToError(needSatis, insertSatis);
   });
 };
 
-const regroupTransfoTime = groupWith<ITransformationTime>((a, b) => a.time === b.time);
+const rangeSatisToTransfoSatis = (
+  rangeNeedSatis: IRangeNeedSatisfaction[]
+): ITransformSatisfaction[] => {
+  return unnest(
+    rangeNeedSatis.map(nsObj =>
+      nsObj.needSatisfactions
+        .filter(ns => !ns.satisfied)
+        .map(ns => ({ range: { start: nsObj.start, end: nsObj.end }, transform: ns.need }))
+    )
+  );
+};
+
+const insatisToError = (
+  needSatis: IRangeNeedSatisfaction[],
+  outputSatis: ITransformSatisfaction[]
+) => {
+  return [...rangeSatisToTransfoSatis(needSatis), ...outputSatis];
+};
+
+const rangeNeedSatiToDoc = (rangeNeed: IRangeNeedSatisfaction | undefined): IRefDoc[] =>
+  rangeNeed
+    ? rangeNeed.needSatisfactions.map(needSatis => ({
+        docs: needSatis.docs,
+        ref: needSatis.need.ref,
+      }))
+    : [];
+const rangeNeedSatisToDocs = (rangeNeeds: IRangeNeedSatisfaction[]) =>
+  rangeNeedSatiToDoc(rangeNeeds.find(rangeNeed => rangeSatisEligible(rangeNeed)));
+
+const idToShrinkSpace = (shrinkSpaces: Array<{ id: string; space: number }>) => (id: string) => {
+  const space = shrinkSpaces.find(sp => sp.id === id) as { id: string; space: number };
+  return space.space;
+};
+
+const potToId = (potential: IPotentiality, placeI: number) =>
+  `${potential.queryId}-potential-${potential.potentialId}-${placeI}`;
+
+const potToShrinkSpace = (potential: IPotentiality) => (place: IRange, placeI: number) => {
+  const id = potToId(potential, placeI);
+  const space = place.end - place.start - potential.duration.min;
+  return {
+    id,
+    space,
+  };
+};
+
+const matToId = (material: IMaterial) =>
+  `${material.queryId}-material-${material.materialId}-${material.splitId || 0}`;
+
+const matToShrinkSpace = (material: IMaterial) => {
+  const id = matToId(material);
+  return {
+    id,
+    space: 0,
+  };
+};
+
+const computeShrinkSpace = (potentials: IPotentiality[], materials: IMaterial[]) => {
+  const potsShrink = unnest(
+    potentials.map(potential => potential.places.map(potToShrinkSpace(potential)))
+  );
+  const matShrink = materials.map(matToShrinkSpace);
+  return [...potsShrink, ...matShrink];
+};
+
+const regroupTransfoTime = (
+  config: IConfig,
+  queries: IQuery[],
+  potentials: IPotentiality[],
+  materials: IMaterial[]
+) => {
+  return groupWith<ITransformationTime>((a, b) => a.time === b.time)(
+    sortByTime([
+      ...configToTransforanges(config),
+      ...mergePotsAndMatsToTransforanges(queries, potentials, materials),
+    ])
+  ).map(a => a.reduce(reduceTransfoGroup));
+};
 const reduceTransfoGroup = (a: ITransformationTime, b: ITransformationTime) => ({
   deletes: [...a.deletes, ...b.deletes],
   inserts: [...a.inserts, ...b.inserts],
@@ -76,54 +139,6 @@ const reduceTransfoGroup = (a: ITransformationTime, b: ITransformationTime) => (
   time: a.time,
   updates: [...a.updates, ...b.updates],
 });
-
-const rangeSatisfactionUnfolder = (
-  db: Loki,
-  transform: ITransformation,
-  timeTransfo: ITransformationTime[]
-) => ([inputResources, transfoIndex]: [INeedResource[], number]):
-  | false
-  | [IRangeQuerySatisfaction, [ITaskTransformNeed[], number]] => {
-  if (transfoIndex + 1 >= timeTransfo.length) {
-    return false;
-  }
-  const firstTransfo = timeTransfo[transfoIndex];
-  const afterInputResources = handleTransformations(db, firstTransfo, inputResources);
-  const result: IRangeQuerySatisfaction = {
-    end: timeTransfo[transfoIndex + 1].time,
-    insertSatisfactions: computeInsertSatisfaction(db, transform.inserts),
-    needSatisfactions: computeNeedSatisfaction(db, transform.needs),
-    start: timeTransfo[transfoIndex].time,
-    updateSatisfactions: computeUpdateSatisfaction(db, transform.updates),
-  };
-  return [result, [afterInputResources, transfoIndex + 1]];
-};
-
-const computeInsertSatisfaction = (
-  db: Loki,
-  inserts: ReadonlyArray<ITaskTransformInsert>
-): IInsertSatisfaction[] => [];
-
-const computeUpdateSatisfaction = (
-  db: Loki,
-  updates: ReadonlyArray<ITaskTransformUpdate>
-): IUpdateSatisfaction[] => [];
-
-const computeNeedSatisfaction = (
-  db: Loki,
-  needs: ReadonlyArray<ITaskTransformNeed>
-): INeedSatisfaction[] =>
-  needs.map(need => {
-    if (!need.wait) {
-      return { need, satisfied: true };
-    }
-    const collection = db.getCollection(need.collectionName);
-    if (!collection) {
-      return { need, satisfied: false };
-    }
-    const docs = collection.find(need.find);
-    return { need, satisfied: docs.length >= need.quantity };
-  });
 
 const sortByTime = sortBy<ITransformationTime>(prop('time'));
 
@@ -140,37 +155,50 @@ const mergePotsAndMatsToTransforanges = (
   );
 };
 
+const transfoToQueryTransfo = (id: string) => <T extends allTransfo>(transfo: ReadonlyArray<T>) => {
+  return transfo.map(t => ({ id, transfo: t }));
+};
+
+/**
+ * Use query chunk identifier. Compute shrink space before.
+ */
 const placeToTransfoTime = (
+  id: string,
   transfo: ITransformation,
   start: number,
   end: number
-): ITransformationTime[] => [
-  {
-    deletes: transfo.deletes,
-    inserts: [],
-    needs: transfo.needs,
-    time: start,
-    updates: [],
-  },
-  {
-    deletes: transfo.deletes,
-    inserts: transfo.inserts,
-    needs: [],
-    time: end,
-    updates: transfo.updates,
-  },
-];
+): ITransformationTime[] => {
+  const toQueryTransfo = transfoToQueryTransfo(id);
+  return [
+    {
+      deletes: [],
+      inserts: [],
+      needs: toQueryTransfo(transfo.needs),
+      time: start,
+      updates: [],
+    },
+    {
+      deletes: toQueryTransfo(transfo.deletes),
+      inserts: toQueryTransfo(transfo.inserts),
+      needs: [],
+      time: end,
+      updates: toQueryTransfo(transfo.updates),
+    },
+  ];
+};
 
 const potentialToTransforanges = (queries: IQuery[]) => (
   potential: IPotentiality
 ): ITransformationTime[] => {
   const query: IQuery = queries.find(q => potential.queryId === q.id) as IQuery;
-  if (!query.transforms) {
+  const transform = query.transforms;
+  if (!transform) {
     return [];
   }
-  const transform = query.transforms;
   return unnest(
-    potential.places.map(place => placeToTransfoTime(transform, place.start, place.end))
+    potential.places.map((place, i) =>
+      placeToTransfoTime(potToId(potential, i), transform, place.start, place.end)
+    )
   );
 };
 
@@ -178,9 +206,9 @@ const materialToTransforanges = (queries: IQuery[]) => (
   material: IMaterial
 ): ITransformationTime[] => {
   const query: IQuery = queries.find(q => material.queryId === q.id) as IQuery;
-  if (!query.transforms) {
+  const transform = query.transforms;
+  if (!transform) {
     return [];
   }
-  const transform = query.transforms;
-  return placeToTransfoTime(transform, material.start, material.end);
+  return placeToTransfoTime(matToId(material), transform, material.start, material.end);
 };

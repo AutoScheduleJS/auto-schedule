@@ -10,6 +10,9 @@ needs:
 - data-io strategy to save change locally or sync with Google Drive (use LokiJS - pull, merge, push; pouchDB hasen't serialize methods)
 - fetch original state (main app responsibility)
 - lifespan handle: docs can specify an expiration date. Needs can query for docs with an expiration date greater than the given one. Provider can provide docs with specified expiration date, and have a minimal start. Thus, lifespan isn't handle by userstate-manager.
+- update and insert satisfaction have to use a specific needResource build for this query, updated with each update/insert handle.
+- build this needResource with the first satisfied range.
+- update satisfaction: query (like providers) can have non-waiting need. Proposal for non-waiting needs that are updated: if need's find gather docs, use them, else return satisfied. Next turn, a new query will spawn to satisfy needs, and update satisfaction will  be able to use docs.
 
 flow dependency:
 - mongo-like engine for simulation (LokiJS)

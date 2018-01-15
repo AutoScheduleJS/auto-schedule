@@ -7,7 +7,7 @@ import {
 import { assocPath, pathOr, pipe, repeat } from 'ramda';
 
 import { INeedResource } from '../data-structures/need-resource.interface';
-import { ITransformationTime } from '../data-structures/transformation-time.interface';
+import { IQueryTransfo, ITransformationTime } from '../data-structures/transformation-time.interface';
 
 export const handleTransformations = (
   db: Loki,
@@ -17,8 +17,15 @@ export const handleTransformations = (
   return handleOutputTransformations(db, transforms, [
     ...needResources,
     ...handleInputTransformations(db, transforms),
-  ]);
+  ]).map(specifyMissingTime(transforms));
 };
+
+const specifyMissingTime = (transfo: ITransformationTime) => (
+  needResource: INeedResource
+): INeedResource => ({
+  ...needResource,
+  missingTime: needResource.missingTime ? needResource.missingTime : transfo.time,
+});
 
 const handleInputTransformations = (db: Loki, transforms: ITransformationTime): INeedResource[] => {
   if (transforms.needs == null) {
@@ -40,18 +47,24 @@ export const handleOutputTransformations = (
   return newNeedResources;
 };
 
-const handleInserts = (db: Loki, inserts: ReadonlyArray<ITaskTransformInsert>): void => {
-  inserts.forEach(insert => {
+const handleInserts = (db: Loki, inserts: ReadonlyArray<IQueryTransfo<ITaskTransformInsert>>): void => {
+  inserts.forEach(insertObj => {
+    const insert = insertObj.transfo;
     const col = getOrCreateCollection(db, insert.collectionName);
     col.insert(insert.doc);
   });
 };
 
-const handleNeeds = (db: Loki, needs: ReadonlyArray<ITaskTransformNeed>): INeedResource[] => {
-  return needs.map(need => {
+const handleNeeds = (db: Loki, needs: ReadonlyArray<IQueryTransfo<ITaskTransformNeed>>): INeedResource[] => {
+  return needs.map(needObj => {
+    const need = needObj.transfo;
     const col = db.getCollection(need.collectionName);
     if (!col) {
-      return need;
+      return {
+        ...need,
+        id: needObj.id,
+        missing: need.quantity,
+      };
     }
     const allDocs: LokiObj[] = col.find(need.find);
     const docs = allDocs.slice(0, Math.min(need.quantity, allDocs.length));
@@ -59,36 +72,38 @@ const handleNeeds = (db: Loki, needs: ReadonlyArray<ITaskTransformNeed>): INeedR
     return {
       ...need,
       docs,
+      id: needObj.id,
+      missing: need.quantity - docs.length,
     };
   });
 };
 
-const handleUpdates = (db: Loki, updates: ReadonlyArray<ITaskTransformUpdate>) => (
+const handleUpdates = (db: Loki, updates: ReadonlyArray<IQueryTransfo<ITaskTransformUpdate>>) => (
   needResources: INeedResource[]
 ): INeedResource[] => {
   return needResources.map(needResource => {
-    const update = updates.find(u => u.ref === needResource.ref);
+    const update = updates.find(u => u.transfo.ref === needResource.ref);
     if (!update) {
       return needResource;
     }
     const col = db.getCollection(needResource.collectionName);
     if (!needResource.docs) {
-      return handleUpdatesFromNil(db, needResource, update);
+      return handleUpdatesFromNil(db, needResource, update.transfo);
     }
-    return handleUpdate(col, needResource, update.update);
+    return handleUpdate(col, needResource, update.transfo.update);
   });
 };
 
-const handleDeletes = (db: Loki, deletes: ReadonlyArray<string>) => (
+const handleDeletes = (db: Loki, deletes: ReadonlyArray<IQueryTransfo<string>>) => (
   needResources: INeedResource[]
 ): INeedResource[] => {
   return needResources.map(needResource => {
-    const del = deletes.find(d => d === needResource.ref);
+    const del = deletes.find(d => d.transfo === needResource.ref);
     if (!del) {
       return needResource;
     }
     const col = db.getCollection(needResource.collectionName);
-    return handleDelete(col, needResource, del);
+    return handleDelete(col, needResource, del.transfo);
   });
 };
 
@@ -138,7 +153,7 @@ const handleUpdate = (
   return { ...need, docs: firsts };
 };
 
-const cleanLokiDoc = (doc: LokiObj): any => {
+export const cleanLokiDoc = (doc: LokiObj): any => {
   return { ...doc, $loki: undefined, meta: undefined };
 };
 
