@@ -12,6 +12,7 @@
     "doc": "npm run build && typedoc --out docs/ dist/",
     "prepublish": "npm run build",
     "semantic-release": "semantic-release",
+    "travis-deploy-once": "travis-deploy-once",
     "watch:ts": "tsc -w",
     "watch:ava": "ava -w build/**/*.test.js",
     "watch:test": "concurrently -k -p \"[{name}]\" -n \"TypeScript,Ava\" -c \"blue.bold,magenta.bold\" \"npm run watch:ts\" \"npm run watch:ava\""
@@ -51,7 +52,8 @@
     "prettier": "^1.9.2",
     "ramda": "^0.25.0",
     "rxjs": "^5.5.6",
-    "semantic-release": "^11.0.2",
+    "semantic-release": "^12.2.2",
+    "travis-deploy-once": "^4.3.1",
     "ts-loader": "^3.2.0",
     "tslint": "^5.8.0",
     "tslint-config-prettier": "^1.6.0",
