@@ -125,7 +125,7 @@ const handleUpdatesFromNil = (
   update: ITaskTransformUpdate
 ): INeedResource => {
   const col = getOrCreateCollection(db, need.collectionName);
-  const doc: any = update.update.reduce((obj: any, method, {}) => updateDocWithMethod({ ...obj }, method));
+  const doc: any = update.update.reduce((obj: any, method) => updateDocWithMethod({ ...obj }, method), {});
   return {
     ...need,
     docs: col.insert(repeat(doc, need.quantity)),
@@ -165,7 +165,7 @@ const updateDocWithMethod = (doc: any, method: IUpdateObject): any => {
     if (method.arrayMethod === 'Delete') {
       const i = arr.findIndex(v => JSON.stringify(v) === JSON.stringify(method.value));
       if (i !== -1) {
-        arr.slice(i, 1);
+        arr.splice(i, 1);
       }
       return assocPath(path, [...arr], doc);
     }

@@ -60,7 +60,7 @@ export const computeOutputSatisfaction = (
     needResources,
     transforms.updates,
     queryDocs
-  )
+  );
   const outputSatisInsert = computeInsertSatisfaction(
     config,
     docMatchFind,
@@ -76,6 +76,11 @@ const docMatchFindFromCol = (col: Collection<any>) => (doc: any, find: any) => {
   col.insert(cleanLokiDoc(doc));
   return col.find(find);
 };
+
+const firstNeedResource = (nrToMT: (nr: INeedResource) => number) => (
+  a: INeedResource,
+  b: INeedResource
+) => (nrToMT(a) < nrToMT(b) ? a : b);
 
 const computeUpdateSatisfaction = (
   configRange: IRange,
@@ -103,7 +108,7 @@ const computeUpdateSatisfaction = (
       if (!allNR.length) {
         return outputSatis.push({ transform: update, range: { start: 0, end: 0 } });
       }
-      const minNR = allNR.reduce((a, b) => (nrToMT(a) < nrToMT(b) ? a : b));
+      const minNR = allNR.reduce(firstNeedResource(nrToMT));
       const range: IRange = {
         end: nrToMT(minNR),
         start: configRange.start,
@@ -134,7 +139,7 @@ const computeInsertSatisfaction = (
     if (!allNR.length) {
       return outputSatis.push({ transform: insert, range: { start: 0, end: 0 } });
     }
-    const minNR = allNR.reduce((a, b) => (nrToMT(a) < nrToMT(b) ? a : b));
+    const minNR = allNR.reduce(firstNeedResource(nrToMT));
     const range: IRange = {
       end: nrToMT(minNR),
       start: configRange.start,
@@ -171,7 +176,9 @@ const computeNeedSatisfaction = (
     return { docs, need, satisfied: docs.length === need.quantity };
   });
 
-const needResourceToMissingTime = (shrinkSpace: (id: IIdentifier) => number) => (nr: INeedResource) => {
+const needResourceToMissingTime = (shrinkSpace: (id: IIdentifier) => number) => (
+  nr: INeedResource
+) => {
   return (nr.missingTime[nr.missingTime.length - 1] as number) + shrinkSpace(nr.id);
 };
 
