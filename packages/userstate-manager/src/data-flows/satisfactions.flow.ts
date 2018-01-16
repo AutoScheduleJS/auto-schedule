@@ -177,5 +177,6 @@ const needResourceToMissingTime = (shrinkSpace: (id: string) => number) => (nr: 
 const updateMissing = (list: INeedResource[], elem: INeedResource): INeedResource[] => {
   const result = [...list];
   const i = list.findIndex(el => el === elem);
-  return [...result.splice(i, 1), { ...elem, missing: elem.missing - 1 }];
+  result.splice(i, 1);
+  return [...result, { ...elem, missing: elem.missing - 1 }];
 };
