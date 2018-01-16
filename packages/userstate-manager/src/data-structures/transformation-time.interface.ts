@@ -1,13 +1,14 @@
 import {
   ITaskTransformInsert,
   ITaskTransformNeed,
-  ITaskTransformUpdate
+  ITaskTransformUpdate,
 } from '@autoschedule/queries-fn';
 
-export type allTransfo = ITaskTransformInsert | ITaskTransformNeed | ITaskTransformUpdate | string;
+import { IIdentifier } from './identifier.interface';
 
+export type allTransfo = ITaskTransformInsert | ITaskTransformNeed | ITaskTransformUpdate | string;
 export interface IQueryTransfo<T extends allTransfo> {
-  id: string;
+  id: IIdentifier;
   transfo: T;
 }
 

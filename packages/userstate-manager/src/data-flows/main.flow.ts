@@ -5,10 +5,15 @@ import * as loki from 'lokijs';
 import { groupWith, prop, sortBy, unnest } from 'ramda';
 
 import { IConfig } from '../data-structures/config.interface';
+import { IIdentifier } from '../data-structures/identifier.interface';
+import { INeedResource } from '../data-structures/need-resource.interface';
 import { IRangeNeedSatisfaction } from '../data-structures/need-satisfaction.interface';
 import { IRefDoc } from '../data-structures/ref-doc.interface';
 import { ITransformSatisfaction } from '../data-structures/transform-satisfaction.interface';
-import { allTransfo, ITransformationTime } from '../data-structures/transformation-time.interface';
+import {
+  allTransfo,
+  ITransformationTime,
+} from '../data-structures/transformation-time.interface';
 
 import { compteRangeSatisfaction, computeOutputSatisfaction } from './satisfactions.flow';
 
@@ -26,6 +31,22 @@ const configToTransforanges = (config: IConfig): ITransformationTime[] => [
 const rangeSatisEligible = (rangeSat: IRangeNeedSatisfaction): boolean =>
   rangeSat.needSatisfactions.every(sat => sat.satisfied);
 
+const useSameResources = (a: INeedResource, b: INeedResource): boolean => {
+  return (
+    a.id.query === b.id.query &&
+    a.id.potential === b.id.potential &&
+    a.id.material === b.id.material &&
+    a.id.split === b.id.split
+  );
+};
+
+const groupNeedResources = (needResources: INeedResource[]) => {
+  return groupWith<INeedResource>(useSameResources)(sortByMissingTime(needResources)).map(
+    needRes =>
+      needRes.reduce((a, b) => ({ ...a, missingTime: [...a.missingTime, ...b.missingTime] }))
+  );
+};
+
 export const queryToStatePotentials = (baseStatePromise: Promise<string>) => (config: IConfig) => (
   queries: IQuery[]
 ) => (query: IQuery, potentials: IPotentiality[], materials: IMaterial[]): Promise<IRange[]> => {
@@ -41,7 +62,7 @@ export const queryToStatePotentials = (baseStatePromise: Promise<string>) => (co
     const outputSatis = computeOutputSatisfaction(
       configRange,
       rangeNeedSatisToDocs(needSatis),
-      needResources,
+      groupNeedResources(needResources),
       transforms,
       idToShrinkSpace(shrinkSpaces)
     );
@@ -87,13 +108,22 @@ const rangeNeedSatiToDoc = (rangeNeed: IRangeNeedSatisfaction | undefined): IRef
 const rangeNeedSatisToDocs = (rangeNeeds: IRangeNeedSatisfaction[]) =>
   rangeNeedSatiToDoc(rangeNeeds.find(rangeNeed => rangeSatisEligible(rangeNeed)));
 
-const idToShrinkSpace = (shrinkSpaces: Array<{ id: string; space: number }>) => (id: string) => {
-  const space = shrinkSpaces.find(sp => sp.id === id) as { id: string; space: number };
+const areSameId = (a: IIdentifier, b: IIdentifier): boolean => {
+  return Object.keys(a).every(k => a[k] === b[k]);
+};
+
+const idToShrinkSpace = (shrinkSpaces: Array<{ id: IIdentifier; space: number }>) => (
+  id: IIdentifier
+) => {
+  const space = shrinkSpaces.find(sp => areSameId(sp.id, id)) as { id: IIdentifier; space: number };
   return space.space;
 };
 
-const potToId = (potential: IPotentiality, placeI: number) =>
-  `${potential.queryId}-potential-${potential.potentialId}-${placeI}`;
+const potToId = (potential: IPotentiality, placeI: number): IIdentifier => ({
+  place: `${placeI}`,
+  potential: `${potential.potentialId}`,
+  query: `${potential.queryId}`,
+});
 
 const potToShrinkSpace = (potential: IPotentiality) => (place: IRange, placeI: number) => {
   const id = potToId(potential, placeI);
@@ -104,8 +134,11 @@ const potToShrinkSpace = (potential: IPotentiality) => (place: IRange, placeI: n
   };
 };
 
-const matToId = (material: IMaterial) =>
-  `${material.queryId}-material-${material.materialId}-${material.splitId || 0}`;
+const matToId = (material: IMaterial): IIdentifier => ({
+  material: `${material.materialId}`,
+  query: `${material.queryId}`,
+  split: `${material.splitId || 0}`,
+});
 
 const matToShrinkSpace = (material: IMaterial) => {
   const id = matToId(material);
@@ -145,6 +178,8 @@ const reduceTransfoGroup = (a: ITransformationTime, b: ITransformationTime) => (
 });
 
 const sortByTime = sortBy<ITransformationTime>(prop('time'));
+const sortByMissingTime = (needResources: INeedResource[]) =>
+  needResources.sort((a, b) => a.missingTime[0] - b.missingTime[0]);
 
 const mergePotsAndMatsToTransforanges = (
   queries: IQuery[],
@@ -159,7 +194,9 @@ const mergePotsAndMatsToTransforanges = (
   );
 };
 
-const transfoToQueryTransfo = (id: string) => <T extends allTransfo>(transfo: ReadonlyArray<T>) => {
+const transfoToQueryTransfo = (id: IIdentifier) => <T extends allTransfo>(
+  transfo: ReadonlyArray<T>
+) => {
   return transfo.map(t => ({ id, transfo: t }));
 };
 
@@ -167,7 +204,7 @@ const transfoToQueryTransfo = (id: string) => <T extends allTransfo>(transfo: Re
  * Use query chunk identifier. Compute shrink space before.
  */
 const placeToTransfoTime = (
-  id: string,
+  id: IIdentifier,
   transfo: ITransformation,
   start: number,
   end: number

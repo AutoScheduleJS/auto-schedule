@@ -24,7 +24,7 @@ const specifyMissingTime = (transfo: ITransformationTime) => (
   needResource: INeedResource
 ): INeedResource => ({
   ...needResource,
-  missingTime: needResource.missingTime ? needResource.missingTime : transfo.time,
+  missingTime: [...needResource.missingTime, transfo.time],
 });
 
 const handleInputTransformations = (db: Loki, transforms: ITransformationTime): INeedResource[] => {
@@ -64,6 +64,7 @@ const handleNeeds = (db: Loki, needs: ReadonlyArray<IQueryTransfo<ITaskTransform
         ...need,
         id: needObj.id,
         missing: need.quantity,
+        missingTime: [],
       };
     }
     const allDocs: LokiObj[] = col.find(need.find);
@@ -74,6 +75,7 @@ const handleNeeds = (db: Loki, needs: ReadonlyArray<IQueryTransfo<ITaskTransform
       docs,
       id: needObj.id,
       missing: need.quantity - docs.length,
+      missingTime: [],
     };
   });
 };

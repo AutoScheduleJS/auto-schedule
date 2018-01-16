@@ -8,6 +8,7 @@ import { IRange } from '@autoschedule/queries-scheduler';
 import * as loki from 'lokijs';
 import { times } from 'ramda';
 
+import { IIdentifier } from '../data-structures/identifier.interface';
 import { INeedResource } from '../data-structures/need-resource.interface';
 import {
   INeedSatisfaction,
@@ -47,7 +48,7 @@ export const computeOutputSatisfaction = (
   queryDocs: IRefDoc[],
   needResources: INeedResource[],
   transforms: ITransformation,
-  shrinkSpace: (id: string) => number
+  shrinkSpace: (id: IIdentifier) => number
 ): ITransformSatisfaction[] => {
   const nrToMT = needResourceToMissingTime(shrinkSpace);
   const db = new loki('satis');
@@ -170,8 +171,8 @@ const computeNeedSatisfaction = (
     return { docs, need, satisfied: docs.length === need.quantity };
   });
 
-const needResourceToMissingTime = (shrinkSpace: (id: string) => number) => (nr: INeedResource) => {
-  return (nr.missingTime as number) + shrinkSpace(nr.id);
+const needResourceToMissingTime = (shrinkSpace: (id: IIdentifier) => number) => (nr: INeedResource) => {
+  return (nr.missingTime[0] as number) + shrinkSpace(nr.id);
 };
 
 const updateMissing = (list: INeedResource[], elem: INeedResource): INeedResource[] => {

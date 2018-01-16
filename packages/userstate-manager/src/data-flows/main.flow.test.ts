@@ -291,12 +291,58 @@ test("will throw when provider's waiting insert isn't needed", t => {
 
 test("will ignore unecessary waiting update if corresponding need isn't found", async t => {
   const query = Q.queryFactory(
-    Q.transforms([Q.need(false, 'test', { response: 42 }, 1, 'ref')], [{ ref: 'ref', update: [{ property: 'response', value: '66' }], wait: true }], [])
+    Q.transforms(
+      [Q.need(false, 'test', { response: 42 }, 1, 'ref')],
+      [{ ref: 'ref', update: [{ property: 'response', value: '66' }], wait: true }],
+      []
+    )
   );
   const result = await shortQueryToStatePots([])(query, [], []);
   t.is(result.length, 1);
   t.is(result[0].start, 0);
   t.is(result[0].end, 5);
+});
+
+test('will throw when insert more than necessary', t => {
+  const query = Q.queryFactory(
+    Q.id(1),
+    Q.duration(Q.timeDuration(1)),
+    Q.transforms([Q.need(false, 'test', { response: '42' }, 1)], [], [])
+  );
+  const provider = Q.queryFactory(
+    Q.transforms(
+      [],
+      [],
+      [
+        { collectionName: 'test', doc: { response: '42' }, wait: true },
+        { collectionName: 'test', doc: { response: '42' }, wait: true },
+      ]
+    )
+  );
+  return mediumQueryToStatePots([query])(
+    provider,
+    [
+      {
+        duration: Q.timeDuration(1),
+        isSplittable: false,
+        places: [{ end: 2, start: 1 }, { end: 8, start: 7 }],
+        potentialId: 1,
+        pressure: 1,
+        queryId: 1,
+      },
+    ],
+    []
+  ).then(
+    () => t.fail('should not pass'),
+    (e: ITransformSatisfaction[]) => {
+      t.true(Array.isArray(e));
+      t.is(e.length, 2);
+      t.is(e[0].range.start, 0);
+      t.is(e[0].range.end, 1);
+      const transform = e[0].transform as Q.ITaskTransformInsert;
+      t.is(transform.collectionName, 'test');
+    }
+  );
 });
 
 test('will find space where resource is lacking that the waiting output satisfies', async t => {
@@ -327,13 +373,11 @@ test('will find space where resource is lacking that the waiting output satisfie
   );
   const insertTiti = Q.queryFactory(
     Q.id(42),
-    Q.transforms([
-      Q.need(true, 'toto', { response: 0 }, 1, 'ref')
-    ], [
-      { ref: 'ref', update: [{ property: 'response', value: '33' }], wait: true}
-    ], [
-      { collectionName: 'titi', doc: { response: '66' }, wait: true }
-    ])
+    Q.transforms(
+      [Q.need(true, 'toto', { response: 0 }, 1, 'ref')],
+      [{ ref: 'ref', update: [{ property: 'response', value: '33' }], wait: true }],
+      [{ collectionName: 'titi', doc: { response: '66' }, wait: true }]
+    )
   );
   const result = await mediumQueryToStatePots([query1, query2, query3, query4, query5, insertTiti])(
     insertTiti,
