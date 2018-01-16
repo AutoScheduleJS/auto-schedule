@@ -17,7 +17,7 @@ import { IRefDoc } from '../data-structures/ref-doc.interface';
 import { ITransformSatisfaction } from '../data-structures/transform-satisfaction.interface';
 import { ITransformationTime } from '../data-structures/transformation-time.interface';
 
-import { cleanLokiDoc, handleTransformations } from './transformations.flow';
+import { cleanLokiDoc, handleTransformations, updateDoc } from './transformations.flow';
 
 export const compteRangeSatisfaction = (
   db: Loki,
@@ -49,13 +49,25 @@ export const computeOutputSatisfaction = (
   transforms: ITransformation,
   shrinkSpace: (id: string) => number
 ): ITransformSatisfaction[] => {
-  const [outputSatis, newNeedRes] = computeInsertSatisfaction(
+  const nrToMT = needResourceToMissingTime(shrinkSpace);
+  const db = new loki('satis');
+  const docMatchFind = docMatchFindFromCol(db.addCollection('test'));
+  const [outputSatisUpdate, newNeedRes] = computeUpdateSatisfaction(
     config,
-    shrinkSpace,
+    docMatchFind,
+    nrToMT,
     needResources,
+    transforms.updates,
+    queryDocs
+  )
+  const outputSatisInsert = computeInsertSatisfaction(
+    config,
+    docMatchFind,
+    nrToMT,
+    newNeedRes,
     transforms.inserts
   );
-  return outputSatis;
+  return [...outputSatisInsert, ...outputSatisUpdate];
 };
 
 const docMatchFindFromCol = (col: Collection<any>) => (doc: any, find: any) => {
@@ -64,16 +76,52 @@ const docMatchFindFromCol = (col: Collection<any>) => (doc: any, find: any) => {
   return col.find(find);
 };
 
+const computeUpdateSatisfaction = (
+  configRange: IRange,
+  docMatchFind: (doc: any, find: any) => any[],
+  nrToMT: (nr: INeedResource) => number,
+  needResources: INeedResource[],
+  updates: ReadonlyArray<ITaskTransformUpdate>,
+  queryDocs: IRefDoc[]
+): [ITransformSatisfaction[], INeedResource[]] => {
+  const outputSatis: ITransformSatisfaction[] = [];
+  let newNeedResources = [...needResources];
+
+  times(updateI => {
+    const update = updates[updateI];
+    const docRef = queryDocs.find(qd => qd.ref === update.ref);
+    if (!update.wait || !docRef) {
+      return outputSatis.push({ transform: update, range: configRange });
+    }
+    return docRef.docs.forEach(doc => {
+      const insert = {
+        collectionName: docRef.collectionName,
+        doc: updateDoc(doc, update.update),
+      };
+      const allNR = satisfiedFromInsertNeedResources(insert, newNeedResources, docMatchFind);
+      if (!allNR.length) {
+        return outputSatis.push({ transform: update, range: { start: 0, end: 0 } });
+      }
+      const minNR = allNR.reduce((a, b) => (nrToMT(a) < nrToMT(b) ? a : b));
+      const range: IRange = {
+        end: nrToMT(minNR),
+        start: configRange.start,
+      };
+      newNeedResources = updateMissing(newNeedResources, minNR);
+      return outputSatis.push({ range, transform: update });
+    });
+  }, updates.length);
+  return [outputSatis, newNeedResources];
+};
+
 const computeInsertSatisfaction = (
   configRange: IRange,
-  shrinkSpace: (id: string) => number,
+  docMatchFind: (doc: any, find: any) => any[],
+  nrToMT: (nr: INeedResource) => number,
   needResources: INeedResource[],
   inserts: ReadonlyArray<ITaskTransformInsert>
-): [ITransformSatisfaction[], INeedResource[]] => {
-  const nrToMT = needResourceToMissingTime(shrinkSpace);
+): ITransformSatisfaction[] => {
   const outputSatis: ITransformSatisfaction[] = [];
-  const db = new loki('satis');
-  const docMatchFind = docMatchFindFromCol(db.addCollection('test'));
   let newNeedResources = [...needResources];
 
   times(insertI => {
@@ -81,7 +129,7 @@ const computeInsertSatisfaction = (
     if (!insert.wait) {
       return outputSatis.push({ transform: insert, range: configRange });
     }
-    const allNR = satisfiedFromInsertNeedResources(insert, needResources, docMatchFind);
+    const allNR = satisfiedFromInsertNeedResources(insert, newNeedResources, docMatchFind);
     if (!allNR.length) {
       return outputSatis.push({ transform: insert, range: { start: 0, end: 0 } });
     }
@@ -93,7 +141,7 @@ const computeInsertSatisfaction = (
     newNeedResources = updateMissing(newNeedResources, minNR);
     return outputSatis.push({ range, transform: insert });
   }, inserts.length);
-  return [outputSatis, newNeedResources];
+  return outputSatis;
 };
 
 const satisfiedFromInsertNeedResources = (

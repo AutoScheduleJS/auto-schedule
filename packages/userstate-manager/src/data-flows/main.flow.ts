@@ -37,20 +37,23 @@ export const queryToStatePotentials = (baseStatePromise: Promise<string>) => (co
     const timeTransfo = regroupTransfoTime(config, queries, potentials, materials);
     const [needSatis, needResources] = compteRangeSatisfaction(db, transforms, timeTransfo);
     const shrinkSpaces = computeShrinkSpace(potentials, materials);
-    const insertSatis = computeOutputSatisfaction(
-      configToRange(config),
+    const configRange = configToRange(config);
+    const outputSatis = computeOutputSatisfaction(
+      configRange,
       rangeNeedSatisToDocs(needSatis),
       needResources,
       transforms,
       idToShrinkSpace(shrinkSpaces)
     );
-    const insertRange =
-      transforms.inserts.length > 0 ? insertSatis.map(s => s.range) : configToRange(config);
-    const result = intersect(simplify(needSatis.filter(rangeSatisEligible)), insertRange);
+    const outputRange = outputSatis.map(s => s.range).reduce((a, b) => {
+      const res = intersect(a, b);
+      return res.length ? res[0] : { start: 0, end: 0 }
+    }, configRange);
+    const result = intersect(simplify(needSatis.filter(rangeSatisEligible)), outputRange);
     if (result.length) {
       return result;
     }
-    throw insatisToError(needSatis, insertSatis);
+    throw insatisToError(needSatis, outputSatis);
   });
 };
 
@@ -76,6 +79,7 @@ const insatisToError = (
 const rangeNeedSatiToDoc = (rangeNeed: IRangeNeedSatisfaction | undefined): IRefDoc[] =>
   rangeNeed
     ? rangeNeed.needSatisfactions.map(needSatis => ({
+        collectionName: needSatis.need.collectionName,
         docs: needSatis.docs,
         ref: needSatis.need.ref,
       }))

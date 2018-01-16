@@ -129,7 +129,7 @@ const handleUpdatesFromNil = (
   update: ITaskTransformUpdate
 ): INeedResource => {
   const col = getOrCreateCollection(db, need.collectionName);
-  const doc: any = update.update.reduce((obj: any, method, {}) => updateDoc({ ...obj }, method));
+  const doc: any = update.update.reduce((obj: any, method, {}) => updateDocWithMethod({ ...obj }, method));
   return {
     ...need,
     docs: col.insert(repeat(doc, need.quantity)),
@@ -142,9 +142,7 @@ const handleUpdate = (
   updates: ReadonlyArray<IUpdateObject>
 ): INeedResource => {
   const docs = need.docs as LokiObj[];
-  const updated = docs.map(doc =>
-    updates.reduce((obj: any, update) => updateDoc(obj, update), { ...doc })
-  );
+  const updated = docs.map(doc => updateDoc(doc, updates));
   const firsts = collection.insert(updated);
   if (need.quantity > docs.length) {
     const rests = collection.insert(repeat(cleanLokiDoc(updated[0]), need.quantity - docs.length));
@@ -157,7 +155,11 @@ export const cleanLokiDoc = (doc: LokiObj): any => {
   return { ...doc, $loki: undefined, meta: undefined };
 };
 
-const updateDoc = (doc: any, method: IUpdateObject): any => {
+export const updateDoc = (doc: any, updates: ReadonlyArray<IUpdateObject>): any => {
+  return updates.reduce((obj: any, update) => updateDocWithMethod(obj, update), { ...doc });
+}
+
+const updateDocWithMethod = (doc: any, method: IUpdateObject): any => {
   const path = method.property.split('.');
   if (method.arrayMethod != null) {
     const arr = [...(pathOr([], path, doc) as any[])];
