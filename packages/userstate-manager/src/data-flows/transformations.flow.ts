@@ -17,21 +17,15 @@ export const handleTransformations = (
   return handleOutputTransformations(db, transforms, [
     ...needResources,
     ...handleInputTransformations(db, transforms),
-  ]).map(specifyMissingTime(transforms));
+  ]);
 };
 
-const specifyMissingTime = (transfo: ITransformationTime) => (
-  needResource: INeedResource
-): INeedResource => ({
-  ...needResource,
-  missingTime: [...needResource.missingTime, transfo.time],
-});
 
 const handleInputTransformations = (db: Loki, transforms: ITransformationTime): INeedResource[] => {
   if (transforms.needs == null) {
     return [];
   }
-  return handleNeeds(db, transforms.needs);
+  return handleNeeds(db, transforms.needs, transforms.time);
 };
 
 export const handleOutputTransformations = (
@@ -55,7 +49,7 @@ const handleInserts = (db: Loki, inserts: ReadonlyArray<IQueryTransfo<ITaskTrans
   });
 };
 
-const handleNeeds = (db: Loki, needs: ReadonlyArray<IQueryTransfo<ITaskTransformNeed>>): INeedResource[] => {
+const handleNeeds = (db: Loki, needs: ReadonlyArray<IQueryTransfo<ITaskTransformNeed>>, time: number): INeedResource[] => {
   return needs.map(needObj => {
     const need = needObj.transfo;
     const col = db.getCollection(need.collectionName);
@@ -64,7 +58,7 @@ const handleNeeds = (db: Loki, needs: ReadonlyArray<IQueryTransfo<ITaskTransform
         ...need,
         id: needObj.id,
         missing: need.quantity,
-        missingTime: [],
+        missingTime: [time],
       };
     }
     const allDocs: LokiObj[] = col.find(need.find);
@@ -75,7 +69,7 @@ const handleNeeds = (db: Loki, needs: ReadonlyArray<IQueryTransfo<ITaskTransform
       docs,
       id: needObj.id,
       missing: need.quantity - docs.length,
-      missingTime: [],
+      missingTime: [time],
     };
   });
 };

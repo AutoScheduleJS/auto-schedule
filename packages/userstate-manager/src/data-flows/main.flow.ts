@@ -15,7 +15,7 @@ import {
   ITransformationTime,
 } from '../data-structures/transformation-time.interface';
 
-import { compteRangeSatisfaction, computeOutputSatisfaction } from './satisfactions.flow';
+import { computeOutputSatisfaction, computeRangeSatisfaction } from './satisfactions.flow';
 
 const serializedDBToDB = (serialized: string): Loki => {
   const db = new loki('simul');
@@ -56,7 +56,7 @@ export const queryToStatePotentials = (baseStatePromise: Promise<string>) => (co
   const transforms = query.transforms;
   return baseStatePromise.then(serializedDBToDB).then(db => {
     const timeTransfo = regroupTransfoTime(config, queries, potentials, materials);
-    const [needSatis, needResources] = compteRangeSatisfaction(db, transforms, timeTransfo);
+    const [needSatis, needResources] = computeRangeSatisfaction(db, transforms, timeTransfo);
     const shrinkSpaces = computeShrinkSpace(potentials, materials);
     const configRange = configToRange(config);
     const outputSatis = computeOutputSatisfaction(

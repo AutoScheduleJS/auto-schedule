@@ -20,7 +20,7 @@ import { ITransformationTime } from '../data-structures/transformation-time.inte
 
 import { cleanLokiDoc, handleTransformations, updateDoc } from './transformations.flow';
 
-export const compteRangeSatisfaction = (
+export const computeRangeSatisfaction = (
   db: Loki,
   transfo: ITransformation,
   timeTransfo: ITransformationTime[]
@@ -172,7 +172,7 @@ const computeNeedSatisfaction = (
   });
 
 const needResourceToMissingTime = (shrinkSpace: (id: IIdentifier) => number) => (nr: INeedResource) => {
-  return (nr.missingTime[0] as number) + shrinkSpace(nr.id);
+  return (nr.missingTime[nr.missingTime.length - 1] as number) + shrinkSpace(nr.id);
 };
 
 const updateMissing = (list: INeedResource[], elem: INeedResource): INeedResource[] => {

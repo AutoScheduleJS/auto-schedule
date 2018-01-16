@@ -319,7 +319,7 @@ test('will throw when insert more than necessary', t => {
       ]
     )
   );
-  return mediumQueryToStatePots([query])(
+  return mediumQueryToStatePots([query, provider])(
     provider,
     [
       {
@@ -338,7 +338,7 @@ test('will throw when insert more than necessary', t => {
       t.true(Array.isArray(e));
       t.is(e.length, 2);
       t.is(e[0].range.start, 0);
-      t.is(e[0].range.end, 1);
+      t.is(e[0].range.end, 7);
       const transform = e[0].transform as Q.ITaskTransformInsert;
       t.is(transform.collectionName, 'test');
     }
