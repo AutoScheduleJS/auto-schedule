@@ -7,7 +7,10 @@ import {
 import { assocPath, pathOr, pipe, repeat } from 'ramda';
 
 import { INeedResource } from '../data-structures/need-resource.interface';
-import { IQueryTransfo, ITransformationTime } from '../data-structures/transformation-time.interface';
+import {
+  IQueryTransfo,
+  ITransformationTime,
+} from '../data-structures/transformation-time.interface';
 
 export const handleTransformations = (
   db: Loki,
@@ -20,11 +23,7 @@ export const handleTransformations = (
   ]);
 };
 
-
 const handleInputTransformations = (db: Loki, transforms: ITransformationTime): INeedResource[] => {
-  if (transforms.needs == null) {
-    return [];
-  }
   return handleNeeds(db, transforms.needs, transforms.time);
 };
 
@@ -41,7 +40,10 @@ export const handleOutputTransformations = (
   return newNeedResources;
 };
 
-const handleInserts = (db: Loki, inserts: ReadonlyArray<IQueryTransfo<ITaskTransformInsert>>): void => {
+const handleInserts = (
+  db: Loki,
+  inserts: ReadonlyArray<IQueryTransfo<ITaskTransformInsert>>
+): void => {
   inserts.forEach(insertObj => {
     const insert = insertObj.transfo;
     const col = getOrCreateCollection(db, insert.collectionName);
@@ -49,7 +51,11 @@ const handleInserts = (db: Loki, inserts: ReadonlyArray<IQueryTransfo<ITaskTrans
   });
 };
 
-const handleNeeds = (db: Loki, needs: ReadonlyArray<IQueryTransfo<ITaskTransformNeed>>, time: number): INeedResource[] => {
+const handleNeeds = (
+  db: Loki,
+  needs: ReadonlyArray<IQueryTransfo<ITaskTransformNeed>>,
+  time: number
+): INeedResource[] => {
   return needs.map(needObj => {
     const need = needObj.transfo;
     const col = db.getCollection(need.collectionName);
@@ -125,7 +131,10 @@ const handleUpdatesFromNil = (
   update: ITaskTransformUpdate
 ): INeedResource => {
   const col = getOrCreateCollection(db, need.collectionName);
-  const doc: any = update.update.reduce((obj: any, method) => updateDocWithMethod({ ...obj }, method), {});
+  const doc: any = update.update.reduce(
+    (obj: any, method) => updateDocWithMethod({ ...obj }, method),
+    {}
+  );
   return {
     ...need,
     docs: col.insert(repeat(doc, need.quantity)),
@@ -153,7 +162,7 @@ export const cleanLokiDoc = (doc: LokiObj): any => {
 
 export const updateDoc = (doc: any, updates: ReadonlyArray<IUpdateObject>): any => {
   return updates.reduce((obj: any, update) => updateDocWithMethod(obj, update), { ...doc });
-}
+};
 
 const updateDocWithMethod = (doc: any, method: IUpdateObject): any => {
   const path = method.property.split('.');
