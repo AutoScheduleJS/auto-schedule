@@ -4,7 +4,7 @@ import {
   ITaskTransformUpdate,
   IUpdateObject,
 } from '@autoschedule/queries-fn';
-import { assocPath, pathOr, pipe, repeat } from 'ramda';
+import { assocPath, pathOr, pipe, repeat, times } from 'ramda';
 
 import { INeedResource } from '../data-structures/need-resource.interface';
 import {
@@ -148,12 +148,21 @@ const handleUpdate = (
 ): INeedResource => {
   const docs = need.docs as LokiObj[];
   const updated = docs.map(doc => updateDoc(doc, updates));
-  const firsts = collection.insert(updated);
+  const firsts = normalizeToArray(collection.insert(updated));
   if (need.quantity > docs.length) {
-    const rests = collection.insert(repeat(cleanLokiDoc(updated[0]), need.quantity - docs.length));
+    const rests = normalizeToArray(
+      collection.insert(times(_ => cleanLokiDoc(updated[0]), need.quantity - docs.length))
+    );
     return { ...need, docs: [...firsts, ...rests] };
   }
   return { ...need, docs: firsts };
+};
+
+const normalizeToArray = (obj: any): any[] => {
+  if (Array.isArray(obj)) {
+    return obj;
+  }
+  return [obj];
 };
 
 export const cleanLokiDoc = (doc: LokiObj): any => {

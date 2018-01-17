@@ -334,6 +334,37 @@ test("will try to works without provider's need satisfied", async t => {
   t.true(result[0].end === 10);
 });
 
+test("will try to works without all prover's need satisfied", async t => {
+  const db = new loki('test_update');
+  db.addCollection('test').insert({ response: '33' });
+
+  const query = Q.queryFactory(
+    Q.duration(Q.timeDuration(1)),
+    Q.transforms([Q.need(true, 'test', { response: '42' }, 3)], [], [])
+  );
+  const provide = Q.queryFactory(
+    Q.id(66),
+    Q.transforms([Q.need(false, 'test', { response: '33' }, 3, 'ref')], [{ ref: 'ref', update: [{ property: 'response', value: '42'}]}], [])
+  );
+  const result = await queryToStatePotentials(Promise.resolve(db.serialize()))(mediumConfig)([query, provide])(
+    query,
+    [
+      {
+        duration: Q.timeDuration(1),
+        isSplittable: false,
+        places: [{ start: 1, end: 3 }],
+        potentialId: 2,
+        pressure: 0.5,
+        queryId: 66,
+      },
+    ],
+    []
+  );
+  t.is(result.length, 1);
+  t.true(result[0].start === 3);
+  t.true(result[0].end === 10);
+});
+
 test('will find space thanks to update provider (potential)', async t => {
   const db = new loki('test_update');
   db.addCollection('titi').insert({ response: ['66'] });
