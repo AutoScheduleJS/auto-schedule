@@ -47,35 +47,34 @@ const groupNeedResources = (needResources: INeedResource[]) => {
   );
 };
 
-export const queryToStatePotentials = (baseStatePromise: Promise<string>) => (config: IConfig) => (
+export const queryToStatePotentials = (baseState: string) => (config: IConfig) => (
   queries: IQuery[]
-) => (query: IQuery, potentials: IPotentiality[], materials: IMaterial[]): Promise<IRange[]> => {
+) => (query: IQuery, potentials: IPotentiality[], materials: IMaterial[]): IRange[] => {
   if (!query.transforms) {
-    return Promise.resolve([configToRange(config)]);
+    return [configToRange(config)];
   }
   const transforms = query.transforms;
-  return baseStatePromise.then(serializedDBToDB).then(db => {
-    const timeTransfo = regroupTransfoTime(config, queries, potentials, materials);
-    const [needSatis, needResources] = computeRangeSatisfaction(db, transforms, timeTransfo);
-    const shrinkSpaces = computeShrinkSpace(potentials, materials);
-    const configRange = configToRange(config);
-    const outputSatis = computeOutputSatisfaction(
-      configRange,
-      rangeNeedSatisToDocs(needSatis),
-      groupNeedResources(needResources),
-      transforms,
-      idToShrinkSpace(shrinkSpaces)
-    );
-    const outputRange = outputSatis.map(s => s.range).reduce((a, b) => {
-      const res = intersect(a, b);
-      return res.length ? res[0] : { start: 0, end: 0 };
-    }, configRange);
-    const result = intersect(simplify(needSatis.filter(rangeSatisEligible)), outputRange);
-    if (result.length) {
-      return result;
-    }
-    throw insatisToError(needSatis, outputSatis);
-  });
+  const db = serializedDBToDB(baseState);
+  const timeTransfo = regroupTransfoTime(config, queries, potentials, materials);
+  const [needSatis, needResources] = computeRangeSatisfaction(db, transforms, timeTransfo);
+  const shrinkSpaces = computeShrinkSpace(potentials, materials);
+  const configRange = configToRange(config);
+  const outputSatis = computeOutputSatisfaction(
+    configRange,
+    rangeNeedSatisToDocs(needSatis),
+    groupNeedResources(needResources),
+    transforms,
+    idToShrinkSpace(shrinkSpaces)
+  );
+  const outputRange = outputSatis.map(s => s.range).reduce((a, b) => {
+    const res = intersect(a, b);
+    return res.length ? res[0] : { start: 0, end: 0 };
+  }, configRange);
+  const result = intersect(simplify(needSatis.filter(rangeSatisEligible)), outputRange);
+  if (result.length) {
+    return result;
+  }
+  throw insatisToError(needSatis, outputSatis);
 };
 
 const rangeSatisToTransfoSatis = (

@@ -10,7 +10,7 @@ import { ITransformSatisfaction } from '../data-structures/transform-satisfactio
 const shortConfig: IConfig = { startDate: 0, endDate: 5 };
 const mediumConfig: IConfig = { startDate: 0, endDate: 10 };
 const hugeConfig: IConfig = { startDate: 0, endDate: 50 };
-const queryToStateDB = queryToStatePotentials(Promise.resolve(new loki('test').serialize()));
+const queryToStateDB = queryToStatePotentials(new loki('test').serialize());
 const shortQueryToStatePots = queryToStateDB(shortConfig);
 const mediumQueryToStatePots = queryToStateDB(mediumConfig);
 const hugeQueryToStatePots = queryToStateDB(hugeConfig);
@@ -25,17 +25,13 @@ test('will return config when no needs', async t => {
 
 test("will throw when needs aren't satisfied", t => {
   const query = Q.queryFactory(Q.transforms([Q.need(true)], [], []));
-  return shortQueryToStatePots([])(query, [], []).then(
-    () => t.fail('should not pass'),
-    (e: ITransformSatisfaction[]) => {
-      t.true(Array.isArray(e));
-      t.is(e.length, 1);
-      t.is(e[0].range.start, 0);
-      t.is(e[0].range.end, 5);
-      const transform = e[0].transform as Q.ITaskTransformNeed;
-      t.is(transform.collectionName, 'test');
-    }
-  );
+  const e = t.throws(() => shortQueryToStatePots([])(query, [], []));
+  t.true(Array.isArray(e));
+  t.is(e.length, 1);
+  t.is(e[0].range.start, 0);
+  t.is(e[0].range.end, 5);
+  const transform = e[0].transform as Q.ITaskTransformNeed;
+  t.is(transform.collectionName, 'test');
 });
 
 test("will throw when one need is'nt satisfied but other are", t => {
@@ -51,7 +47,7 @@ test("will throw when one need is'nt satisfied but other are", t => {
     Q.id(66),
     Q.transforms([], [], [{ collectionName: 'titi', doc: { response: 42 } }])
   );
-  return shortQueryToStatePots([provide, query])(
+  const e = t.throws(() => shortQueryToStatePots([provide, query])(
     query,
     [
       {
@@ -64,17 +60,13 @@ test("will throw when one need is'nt satisfied but other are", t => {
       },
     ],
     []
-  ).then(
-    () => t.fail('should not pass'),
-    (e: ITransformSatisfaction[]) => {
-      t.true(Array.isArray(e));
-      t.true(e.length === 5);
-      t.is(e[4].range.start, 3);
-      t.is(e[4].range.end, 5);
-      const transform = e[4].transform as Q.ITaskTransformNeed;
-      t.is(transform.collectionName, 'toto');
-    }
-  );
+  ));
+  t.true(Array.isArray(e));
+  t.true(e.length === 5);
+  t.is(e[4].range.start, 3);
+  t.is(e[4].range.end, 5);
+  const transform = e[4].transform as Q.ITaskTransformNeed;
+  t.is(transform.collectionName, 'toto');
 });
 
 test('will find space where resource is available from potentiality', async t => {
@@ -160,7 +152,7 @@ test("will throw if waiting update isn't necessary", t => {
     Q.id(66),
     Q.transforms([], [], [{ collectionName: 'titi', doc: { response: '42' } }])
   );
-  return shortQueryToStatePots([provide, query])(
+  const e = t.throws(() => shortQueryToStatePots([provide, query])(
     query,
     [
       {
@@ -173,17 +165,13 @@ test("will throw if waiting update isn't necessary", t => {
       },
     ],
     []
-  ).then(
-    () => t.fail('should not pass'),
-    (e: ITransformSatisfaction[]) => {
-      t.true(Array.isArray(e));
-      t.true(e.length === 3);
-      t.is(e[2].range.start, 0);
-      t.is(e[2].range.end, 0);
-      const transform = e[2].transform as Q.ITaskTransformUpdate;
-      t.is(transform.ref, 'ref');
-    }
-  );
+  ));
+  t.true(Array.isArray(e));
+  t.true(e.length === 3);
+  t.is(e[2].range.start, 0);
+  t.is(e[2].range.end, 0);
+  const transform = e[2].transform as Q.ITaskTransformUpdate;
+  t.is(transform.ref, 'ref');
 });
 
 test('will ignore non waiting output', async t => {
@@ -346,7 +334,7 @@ test("will try to works without all prover's need satisfied", async t => {
     Q.id(66),
     Q.transforms([Q.need(false, 'test', { response: '33' }, 3, 'ref')], [{ ref: 'ref', update: [{ property: 'response', value: '42'}]}], [])
   );
-  const result = await queryToStatePotentials(Promise.resolve(db.serialize()))(mediumConfig)([query, provide])(
+  const result = await queryToStatePotentials(db.serialize())(mediumConfig)([query, provide])(
     query,
     [
       {
@@ -390,7 +378,7 @@ test('will find space thanks to update provider (potential)', async t => {
       []
     )
   );
-  const result = await queryToStatePotentials(Promise.resolve(db.serialize()))(mediumConfig)([
+  const result = await queryToStatePotentials(db.serialize())(mediumConfig)([
     query,
     updateTiti,
   ])(
@@ -416,17 +404,13 @@ test("will throw when provider's waiting insert isn't needed", t => {
   const query = Q.queryFactory(
     Q.transforms([], [], [{ collectionName: 'titi', doc: { useless: true }, wait: true }])
   );
-  return shortQueryToStatePots([])(query, [], []).then(
-    () => t.fail('should not pass'),
-    (e: ITransformSatisfaction[]) => {
-      t.true(Array.isArray(e));
-      t.is(e.length, 1);
-      t.is(e[0].range.start, 0);
-      t.is(e[0].range.end, 0);
-      const transform = e[0].transform as Q.ITaskTransformNeed;
-      t.is(transform.collectionName, 'titi');
-    }
-  );
+  const e = t.throws(() => shortQueryToStatePots([])(query, [], []));
+  t.true(Array.isArray(e));
+  t.is(e.length, 1);
+  t.is(e[0].range.start, 0);
+  t.is(e[0].range.end, 0);
+  const transform = e[0].transform as Q.ITaskTransformNeed;
+  t.is(transform.collectionName, 'titi');
 });
 
 test("will ignore unecessary waiting update if corresponding need isn't found", async t => {
@@ -459,7 +443,7 @@ test('will throw when insert more than necessary', t => {
       ]
     )
   );
-  return mediumQueryToStatePots([query, provider])(
+  const e = t.throws(() => mediumQueryToStatePots([query, provider])(
     provider,
     [
       {
@@ -472,17 +456,13 @@ test('will throw when insert more than necessary', t => {
       },
     ],
     []
-  ).then(
-    () => t.fail('should not pass'),
-    (e: ITransformSatisfaction[]) => {
-      t.true(Array.isArray(e));
-      t.is(e.length, 2);
-      t.is(e[0].range.start, 0);
-      t.is(e[0].range.end, 7);
-      const transform = e[0].transform as Q.ITaskTransformInsert;
-      t.is(transform.collectionName, 'test');
-    }
-  );
+  ));
+  t.true(Array.isArray(e));
+  t.is(e.length, 2);
+  t.is(e[0].range.start, 0);
+  t.is(e[0].range.end, 7);
+  const transform = e[0].transform as Q.ITaskTransformInsert;
+  t.is(transform.collectionName, 'test');
 });
 
 test('will find space where resource is lacking that the waiting output satisfies', async t => {
