@@ -180,13 +180,9 @@ const updateDocWithMethod = (doc: any, method: IUpdateObject): any => {
     if (method.arrayMethod === 'Push') {
       return assocPath(path, [...arr, method.value], doc);
     }
-    if (method.arrayMethod === 'Delete') {
-      const i = arr.findIndex(v => JSON.stringify(v) === JSON.stringify(method.value));
-      if (i !== -1) {
-        arr.splice(i, 1);
-      }
-      return assocPath(path, [...arr], doc);
-    }
+    const i = arr.findIndex(v => JSON.stringify(v) === JSON.stringify(method.value));
+    arr.splice(i, 1);
+    return assocPath(path, [...arr], doc);
   }
   return assocPath(path, method.value, doc);
 };
