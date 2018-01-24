@@ -46,20 +46,22 @@ test("will throw when one need is'nt satisfied but other are", t => {
     Q.id(66),
     Q.transforms([], [], [{ collectionName: 'titi', doc: { response: 42 } }])
   );
-  const e = t.throws(() => shortQueryToStatePots([provide, query])(
-    query,
-    [
-      {
-        duration: Q.timeDuration(1),
-        isSplittable: false,
-        places: [{ start: 2, end: 3 }],
-        potentialId: 1,
-        pressure: 1,
-        queryId: 66,
-      },
-    ],
-    []
-  ));
+  const e = t.throws(() =>
+    shortQueryToStatePots([provide, query])(
+      query,
+      [
+        {
+          duration: Q.timeDuration(1),
+          isSplittable: false,
+          places: [{ start: 2, end: 3 }],
+          potentialId: 1,
+          pressure: 1,
+          queryId: 66,
+        },
+      ],
+      []
+    )
+  );
   t.true(Array.isArray(e));
   t.true(e.length === 5);
   t.is(e[4].range.start, 3);
@@ -151,20 +153,22 @@ test("will throw if waiting update isn't necessary", t => {
     Q.id(66),
     Q.transforms([], [], [{ collectionName: 'titi', doc: { response: '42' } }])
   );
-  const e = t.throws(() => shortQueryToStatePots([provide, query])(
-    query,
-    [
-      {
-        duration: Q.timeDuration(1),
-        isSplittable: false,
-        places: [{ start: 2, end: 3 }],
-        potentialId: 1,
-        pressure: 1,
-        queryId: 66,
-      },
-    ],
-    []
-  ));
+  const e = t.throws(() =>
+    shortQueryToStatePots([provide, query])(
+      query,
+      [
+        {
+          duration: Q.timeDuration(1),
+          isSplittable: false,
+          places: [{ start: 2, end: 3 }],
+          potentialId: 1,
+          pressure: 1,
+          queryId: 66,
+        },
+      ],
+      []
+    )
+  );
   t.true(Array.isArray(e));
   t.true(e.length === 3);
   t.is(e[2].range.start, 0);
@@ -300,7 +304,11 @@ test("will try to works without provider's need satisfied", async t => {
   );
   const provide = Q.queryFactory(
     Q.id(66),
-    Q.transforms([Q.need(false, 'test', { response: '33' }, 1, 'ref')], [{ ref: 'ref', update: [{ property: 'response', value: '42'}]}], [])
+    Q.transforms(
+      [Q.need(false, 'test', { response: '33' }, 1, 'ref')],
+      [{ ref: 'ref', update: [{ property: 'response', value: '42' }] }],
+      []
+    )
   );
   const result = await mediumQueryToStatePots([query, provide])(
     query,
@@ -331,7 +339,11 @@ test("will try to works without all prover's need satisfied", async t => {
   );
   const provide = Q.queryFactory(
     Q.id(66),
-    Q.transforms([Q.need(false, 'test', { response: '33' }, 3, 'ref')], [{ ref: 'ref', update: [{ property: 'response', value: '42'}]}], [])
+    Q.transforms(
+      [Q.need(false, 'test', { response: '33' }, 3, 'ref')],
+      [{ ref: 'ref', update: [{ property: 'response', value: '42' }] }],
+      []
+    )
   );
   const result = await queryToStatePotentials(db.serialize())(mediumConfig)([query, provide])(
     query,
@@ -377,10 +389,7 @@ test('will find space thanks to update provider (potential)', async t => {
       []
     )
   );
-  const result = await queryToStatePotentials(db.serialize())(mediumConfig)([
-    query,
-    updateTiti,
-  ])(
+  const result = await queryToStatePotentials(db.serialize())(mediumConfig)([query, updateTiti])(
     query,
     [
       {
@@ -442,20 +451,22 @@ test('will throw when insert more than necessary', t => {
       ]
     )
   );
-  const e = t.throws(() => mediumQueryToStatePots([query, provider])(
-    provider,
-    [
-      {
-        duration: Q.timeDuration(1),
-        isSplittable: false,
-        places: [{ end: 2, start: 1 }, { end: 8, start: 7 }],
-        potentialId: 1,
-        pressure: 1,
-        queryId: 1,
-      },
-    ],
-    []
-  ));
+  const e = t.throws(() =>
+    mediumQueryToStatePots([query, provider])(
+      provider,
+      [
+        {
+          duration: Q.timeDuration(1),
+          isSplittable: false,
+          places: [{ end: 2, start: 1 }, { end: 8, start: 7 }],
+          potentialId: 1,
+          pressure: 1,
+          queryId: 1,
+        },
+      ],
+      []
+    )
+  );
   t.true(Array.isArray(e));
   t.is(e.length, 2);
   t.is(e[0].range.start, 0);

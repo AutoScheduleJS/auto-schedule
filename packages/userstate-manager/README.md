@@ -3,6 +3,8 @@
 > Manage user-state
 
 [![Greenkeeper badge](https://badges.greenkeeper.io/AutoScheduleJS/userstate-manager.svg)](https://greenkeeper.io/)
+[![Maintainability](https://api.codeclimate.com/v1/badges/76612be1e3d40698fb86/maintainability)](https://codeclimate.com/github/AutoScheduleJS/userstate-manager/maintainability)
+[![Test Coverage](https://api.codeclimate.com/v1/badges/76612be1e3d40698fb86/test_coverage)](https://codeclimate.com/github/AutoScheduleJS/userstate-manager/test_coverage)
 [![Build Status](https://travis-ci.org/AutoScheduleJS/userstate-manager.svg?branch=master)](https://travis-ci.org/AutoScheduleJS/userstate-manager)
 
 needs:
