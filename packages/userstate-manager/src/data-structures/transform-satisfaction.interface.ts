@@ -3,7 +3,7 @@ import {
   ITaskTransformNeed,
   ITaskTransformUpdate,
 } from '@autoschedule/queries-fn';
-import { IRange } from '@autoschedule/queries-scheduler';
+import { IRange } from './queries-scheduler.interface';
 
 export type transformType = ITaskTransformInsert | ITaskTransformNeed | ITaskTransformUpdate;
 

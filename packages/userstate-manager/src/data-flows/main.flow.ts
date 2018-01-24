@@ -1,5 +1,4 @@
 import { IQuery, ITransformation } from '@autoschedule/queries-fn';
-import { IMaterial, IPotentiality, IRange } from '@autoschedule/queries-scheduler';
 import { intersect, simplify } from 'intervals-fn';
 import * as loki from 'lokijs';
 import { groupWith, prop, sortBy, unnest } from 'ramda';
@@ -8,6 +7,7 @@ import { IConfig } from '../data-structures/config.interface';
 import { IIdentifier } from '../data-structures/identifier.interface';
 import { INeedResource } from '../data-structures/need-resource.interface';
 import { IRangeNeedSatisfaction } from '../data-structures/need-satisfaction.interface';
+import { IMaterial, IPotentiality, IRange } from '../data-structures/queries-scheduler.interface';
 import { IRefDoc } from '../data-structures/ref-doc.interface';
 import { ITransformSatisfaction } from '../data-structures/transform-satisfaction.interface';
 import {

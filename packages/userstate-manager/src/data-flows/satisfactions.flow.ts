@@ -4,7 +4,6 @@ import {
   ITaskTransformUpdate,
   ITransformation,
 } from '@autoschedule/queries-fn';
-import { IRange } from '@autoschedule/queries-scheduler';
 import * as loki from 'lokijs';
 import { times } from 'ramda';
 
@@ -14,6 +13,7 @@ import {
   INeedSatisfaction,
   IRangeNeedSatisfaction,
 } from '../data-structures/need-satisfaction.interface';
+import { IRange } from '../data-structures/queries-scheduler.interface';
 import { IRefDoc } from '../data-structures/ref-doc.interface';
 import { ITransformSatisfaction } from '../data-structures/transform-satisfaction.interface';
 import { ITransformationTime } from '../data-structures/transformation-time.interface';

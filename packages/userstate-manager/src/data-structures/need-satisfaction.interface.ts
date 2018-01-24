@@ -1,5 +1,6 @@
 import { ITaskTransformNeed } from '@autoschedule/queries-fn';
-import { IRange } from '@autoschedule/queries-scheduler';
+
+import { IRange } from './queries-scheduler.interface';
 
 export interface INeedSatisfaction {
   readonly docs: ReadonlyArray<LokiObj>;

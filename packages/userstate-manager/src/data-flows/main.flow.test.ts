@@ -5,7 +5,6 @@ import * as loki from 'lokijs';
 import { queryToStatePotentials } from './main.flow';
 
 import { IConfig } from '../data-structures/config.interface';
-import { ITransformSatisfaction } from '../data-structures/transform-satisfaction.interface';
 
 const shortConfig: IConfig = { startDate: 0, endDate: 5 };
 const mediumConfig: IConfig = { startDate: 0, endDate: 10 };
