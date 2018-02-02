@@ -14,12 +14,16 @@ import {
   allTransfo,
   ITransformationTime,
 } from '../data-structures/transformation-time.interface';
+import { IUserstateCollection } from '../data-structures/userstate-collection.interface';
 
 import { computeOutputSatisfaction, computeRangeSatisfaction } from './satisfactions.flow';
 
-const serializedDBToDB = (serialized: string): Loki => {
+const objectDBToDB = (objectDB: ReadonlyArray<IUserstateCollection>): Loki => {
   const db = new loki('simul');
-  db.loadJSON(serialized);
+  objectDB.forEach(userStateCol => {
+    const col = db.addCollection(userStateCol.collectionName);
+    col.insert(userStateCol.data);
+  });
   return db;
 };
 
@@ -47,14 +51,14 @@ const groupNeedResources = (needResources: INeedResource[]) => {
   );
 };
 
-export const queryToStatePotentials = (baseState: string) => (config: IConfig) => (
+export const queryToStatePotentials = (baseState: ReadonlyArray<IUserstateCollection>) => (config: IConfig) => (
   queries: IQuery[]
 ) => (query: IQuery, potentials: IPotentiality[], materials: IMaterial[]): IRange[] => {
   if (!query.transforms) {
     return [configToRange(config)];
   }
   const transforms = query.transforms;
-  const db = serializedDBToDB(baseState);
+  const db = objectDBToDB(baseState);
   const timeTransfo = regroupTransfoTime(config, queries, potentials, materials);
   const [needSatis, needResources] = computeRangeSatisfaction(db, transforms, timeTransfo);
   const shrinkSpaces = computeShrinkSpace(potentials, materials);

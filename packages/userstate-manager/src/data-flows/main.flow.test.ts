@@ -1,6 +1,5 @@
 import * as Q from '@autoschedule/queries-fn';
 import test from 'ava';
-import * as loki from 'lokijs';
 
 import { queryToStatePotentials } from './main.flow';
 
@@ -9,7 +8,7 @@ import { IConfig } from '../data-structures/config.interface';
 const shortConfig: IConfig = { startDate: 0, endDate: 5 };
 const mediumConfig: IConfig = { startDate: 0, endDate: 10 };
 const hugeConfig: IConfig = { startDate: 0, endDate: 50 };
-const queryToStateDB = queryToStatePotentials(new loki('test').serialize());
+const queryToStateDB = queryToStatePotentials([]);
 const shortQueryToStatePots = queryToStateDB(shortConfig);
 const mediumQueryToStatePots = queryToStateDB(mediumConfig);
 const hugeQueryToStatePots = queryToStateDB(hugeConfig);
@@ -330,8 +329,7 @@ test("will try to works without provider's need satisfied", async t => {
 });
 
 test("will try to works without all prover's need satisfied", async t => {
-  const db = new loki('test_update');
-  db.addCollection('test').insert({ response: '33' });
+  const dbObj = [{ collectionName: 'test', data: [{ response: '33' }] }];
 
   const query = Q.queryFactory(
     Q.duration(Q.timeDuration(1)),
@@ -345,7 +343,7 @@ test("will try to works without all prover's need satisfied", async t => {
       []
     )
   );
-  const result = await queryToStatePotentials(db.serialize())(mediumConfig)([query, provide])(
+  const result = await queryToStatePotentials(dbObj)(mediumConfig)([query, provide])(
     query,
     [
       {
@@ -365,8 +363,7 @@ test("will try to works without all prover's need satisfied", async t => {
 });
 
 test('will find space thanks to update provider (potential)', async t => {
-  const db = new loki('test_update');
-  db.addCollection('titi').insert({ response: ['66'] });
+  const dbObj = [{ collectionName: 'titi', data: [{ response: ['66'] }] }];
 
   const query = Q.queryFactory(
     Q.id(1),
@@ -389,7 +386,7 @@ test('will find space thanks to update provider (potential)', async t => {
       []
     )
   );
-  const result = await queryToStatePotentials(db.serialize())(mediumConfig)([query, updateTiti])(
+  const result = await queryToStatePotentials(dbObj)(mediumConfig)([query, updateTiti])(
     query,
     [
       {
