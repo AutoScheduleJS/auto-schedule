@@ -2,7 +2,6 @@ import { assoc, assocPath, mergeAll } from 'ramda';
 import {
   GoalKind,
   IAtomicQuery,
-  IChunkIdentifier,
   IGoal,
   IGoalQuery,
   IProviderQuery,
@@ -40,13 +39,6 @@ export const kind = (kindQK?: QueryKind): Record<'kind', QueryKind> => ({
  * @param idNb if not set, use `42`.
  */
 export const id = (idNb?: number): Record<'id', number> => ({ id: idNb || 42 });
-
-/**
- * Construct query's `provide` property.
- */
-export const provide = (provideNb: number): Record<'provide', IChunkIdentifier> => ({
-  provide: { queryId: provideNb },
-});
 
 const tb = <T extends 'start' | 'end'>(t: T) => (
   target: number,
@@ -129,7 +121,7 @@ export const need = (
   collectionName: string = 'test',
   find: any = {},
   quantity: number = 1,
-  ref: string = '1',
+  ref: string = '1'
 ): ITaskTransformNeed => {
   return {
     collectionName,
@@ -181,9 +173,32 @@ export const isGoalQuery = (query: IQuery): query is IGoalQuery => {
 };
 
 export const isProviderQuery = (query: IQuery): query is IProviderQuery => {
-  return (query as IProviderQuery).provide != null;
+  return !isGoalQuery(query) && query.transforms != null;
 };
 
 export const isAtomicQuery = (query: IQuery): query is IAtomicQuery => {
-  return !isGoalQuery(query) && !isProviderQuery(query);
+  return !isGoalQuery(query) && (query as IProviderQuery).timeRestrictions == null;
+};
+
+export const sanitize = (query: any): IQuery => {
+  const result = { ...query };
+  const optionalProps: Array<keyof (IAtomicQuery & IGoalQuery)> = [
+    'start',
+    'end',
+    'duration',
+    'timeRestrictions',
+    'transforms',
+  ];
+  optionalProps.forEach(p => {
+    if (result[p] != null) {
+      return;
+    }
+    delete result[p];
+  });
+  return {
+    ...result,
+    ...(!result.transforms
+      ? {}
+      : transforms(result.transforms.needs || [], result.transforms.updates || [], result.transforms.inserts || [])),
+  };
 };

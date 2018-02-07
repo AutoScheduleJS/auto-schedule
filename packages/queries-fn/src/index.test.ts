@@ -1,7 +1,7 @@
 import test from 'ava';
 import { has } from 'ramda';
 
-import { IAtomicQuery, IGoalQuery } from './data.structures';
+import { IAtomicQuery, IGoalQuery, IProviderQuery } from './data.structures';
 import * as Q from './index';
 
 const hasBasic = (t: any, query: Q.IQuery): void => {
@@ -104,7 +104,13 @@ test('will add needs transform', t => {
 });
 
 test('will set correct delete transforms', t => {
-  const query = Q.queryFactory(Q.transforms([Q.need(true, 'a', {}, 1, 'aa'), Q.need(false, 'b', {}, 1, 'bb')], [{ ref: 'aa', update: []}], []));
+  const query = Q.queryFactory(
+    Q.transforms(
+      [Q.need(true, 'a', {}, 1, 'aa'), Q.need(false, 'b', {}, 1, 'bb')],
+      [{ ref: 'aa', update: [] }],
+      []
+    )
+  );
   hasBasic(t, query);
   t.true(query.transforms != null);
   t.is(query.transforms && query.transforms.deletes.length, 1);
@@ -119,15 +125,51 @@ test('will typeguard goal query', t => {
 });
 
 test('will typeguard provider query', t => {
-  const query = Q.queryFactory<Q.IProviderQuery>(Q.provide(1));
+  const query = Q.queryFactory<Q.IProviderQuery>(
+    Q.timeRestrictions('hour', Q.RestrictionCondition.InRange, [[0, 1]]),
+    Q.transforms([], [], [])
+  );
   t.false(Q.isAtomicQuery(query));
   t.true(Q.isProviderQuery(query));
   t.false(Q.isGoalQuery(query));
 });
 
-test('will typeguard atomic query', t => {
+test('will typeguard atomic query without transforms', t => {
   const query = Q.queryFactory(Q.start(1), Q.end(2));
   t.true(Q.isAtomicQuery(query));
   t.false(Q.isProviderQuery(query));
   t.false(Q.isGoalQuery(query));
+});
+
+test('will typeguard atomic query with transforms', t => {
+  const query = Q.queryFactory(Q.start(1), Q.end(2), Q.transforms([], [], []));
+  t.true(Q.isAtomicQuery(query));
+  t.true(Q.isProviderQuery(query));
+  t.false(Q.isGoalQuery(query));
+});
+
+test('will sanitize query', t => {
+  const query: IAtomicQuery & IProviderQuery = Q.sanitize({
+    end: undefined,
+    id: 1,
+    kind: 1,
+    name: 'query',
+    start: { target: 0 },
+    transforms: { needs: [{ collectionName: 'test', find: {}, quantity: 1, ref: 'ref', wait: false }] },
+  });
+  const query2: IAtomicQuery & IProviderQuery = Q.sanitize({
+    id: 1,
+    kind: 1,
+    name: 'query',
+  });
+  const query3: IAtomicQuery & IProviderQuery = Q.sanitize({
+    id: 1,
+    kind: 1,
+    name: 'query',
+    transforms: { update: [], insert: [] },
+  });
+  t.true(query.transforms && query.transforms.deletes.length > 0);
+  t.true(query3.transforms && query3.transforms.deletes.length === 0);
+  t.false(Object.getOwnPropertyNames(query).some(p => p === 'end'));
+  t.false(Object.getOwnPropertyNames(query2).some(p => p === 'transform'));
 });
