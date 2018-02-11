@@ -209,6 +209,7 @@ export const sanitize = (query: any): IQuery => {
 
 export const isTaskTransformNeed = (userNeed: any): userNeed is ITaskTransformNeed => {
   return (
+    userNeed != null &&
     userNeed.collectionName != null &&
     userNeed.find != null &&
     userNeed.quantity != null &&
@@ -217,9 +218,9 @@ export const isTaskTransformNeed = (userNeed: any): userNeed is ITaskTransformNe
 };
 
 export const isTaskTransformInsert = (userInsert: any): userInsert is ITaskTransformInsert => {
-  return userInsert.collectionName != null && userInsert.doc != null;
+  return userInsert != null && userInsert.collectionName != null && userInsert.doc != null;
 };
 
 export const isTaskTransformUpdate = (userUpdate: any): userUpdate is ITaskTransformUpdate => {
-  return userUpdate.ref != null && userUpdate.update != null;
+  return userUpdate != null && userUpdate.ref != null && userUpdate.update != null;
 };
