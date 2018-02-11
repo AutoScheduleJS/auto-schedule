@@ -155,7 +155,9 @@ test('will sanitize query', t => {
     kind: 1,
     name: 'query',
     start: { target: 0 },
-    transforms: { needs: [{ collectionName: 'test', find: {}, quantity: 1, ref: 'ref', wait: false }] },
+    transforms: {
+      needs: [{ collectionName: 'test', find: {}, quantity: 1, ref: 'ref', wait: false }],
+    },
   });
   const query2: IAtomicQuery & IProviderQuery = Q.sanitize({
     id: 1,
@@ -166,10 +168,26 @@ test('will sanitize query', t => {
     id: 1,
     kind: 1,
     name: 'query',
-    transforms: { update: [], insert: [] },
+    transforms: { updates: [], inserts: [] },
+  });
+  const query4: IAtomicQuery & IProviderQuery = Q.sanitize({
+    id: 1,
+    kind: 1,
+    name: 'query',
+    transforms: {
+      inserts: [{}, { collectionName: 'test', doc: {} }],
+      needs: [{}],
+      updates: [{}, { ref: 'ref', update: {} }],
+    },
   });
   t.true(query.transforms && query.transforms.deletes.length > 0);
   t.true(query3.transforms && query3.transforms.deletes.length === 0);
+  t.true(
+    query4.transforms &&
+      query4.transforms.deletes.length === 0 &&
+      query4.transforms.inserts.length === 1 &&
+      query4.transforms.updates.length === 1
+  );
   t.false(Object.getOwnPropertyNames(query).some(p => p === 'end'));
   t.false(Object.getOwnPropertyNames(query2).some(p => p === 'transform'));
 });

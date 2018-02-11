@@ -197,8 +197,29 @@ export const sanitize = (query: any): IQuery => {
   });
   return {
     ...result,
-    ...(!result.transforms
+    ...!result.transforms
       ? {}
-      : transforms(result.transforms.needs || [], result.transforms.updates || [], result.transforms.inserts || [])),
+      : transforms(
+          (result.transforms.needs || []).filter(isTaskTransformNeed),
+          (result.transforms.updates || []).filter(isTaskTransformUpdate),
+          (result.transforms.inserts || []).filter(isTaskTransformInsert)
+        ),
   };
+};
+
+export const isTaskTransformNeed = (userNeed: any): userNeed is ITaskTransformNeed => {
+  return (
+    userNeed.collectionName != null &&
+    userNeed.find != null &&
+    userNeed.quantity != null &&
+    userNeed.ref != null
+  );
+};
+
+export const isTaskTransformInsert = (userInsert: any): userInsert is ITaskTransformInsert => {
+  return userInsert.collectionName != null && userInsert.doc != null;
+};
+
+export const isTaskTransformUpdate = (userUpdate: any): userUpdate is ITaskTransformUpdate => {
+  return userUpdate.ref != null && userUpdate.update != null;
 };
