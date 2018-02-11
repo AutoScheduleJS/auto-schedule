@@ -11,6 +11,7 @@
     "build": "webpack",
     "doc": "npm run build && typedoc --out docs/ dist/",
     "prepublish": "npm run build",
+    "travis-deploy-once": "travis-deploy-once",
     "semantic-release": "semantic-release",
     "watch:ts": "tsc -w",
     "watch:ava": "ava -w build/**/*.test.js",
