@@ -13,12 +13,28 @@ const shortQueryToStatePots = queryToStateDB(shortConfig);
 const mediumQueryToStatePots = queryToStateDB(mediumConfig);
 const hugeQueryToStatePots = queryToStateDB(hugeConfig);
 
-test('will return config when no needs', async t => {
+test('will return config when no needs', t => {
   const query = Q.queryFactory();
-  const result = await shortQueryToStatePots([])(query, [], []);
+  const result = shortQueryToStatePots([query])(query, [], []);
   t.is(result.length, 1);
   t.is(result[0].start, 0);
   t.is(result[0].end, 5);
+});
+
+test('will run multiple simulation with same result', t => {
+  const query = Q.queryFactory(
+    Q.transforms([], [], [{ collectionName: 'col', doc: { test: 'test' } }])
+  );
+  const result1 = shortQueryToStatePots([query])(query, [], []);
+  const result2 = shortQueryToStatePots([query])(query, [], []);
+  const result3 = shortQueryToStatePots([query])(query, [], []);
+
+  [result1, result2, result3].forEach(res => {
+    t.is(res.length, 1);
+    t.is(res[0].start, 0);
+    t.is(res[0].end, 5);
+    t.truthy(query.transforms && query.transforms.inserts[0].doc.$loki == null);
+  });
 });
 
 test("will throw when needs aren't satisfied", t => {
@@ -69,7 +85,7 @@ test("will throw when one need is'nt satisfied but other are", t => {
   t.is(transform.collectionName, 'toto');
 });
 
-test('will find space where resource is available from potentiality', async t => {
+test('will find space where resource is available from potentiality', t => {
   const query = Q.queryFactory(
     Q.duration(Q.timeDuration(1)),
     Q.transforms([Q.need(true, 'test', { response: 42 }, 1)], [], [])
@@ -79,7 +95,7 @@ test('will find space where resource is available from potentiality', async t =>
     Q.transforms([], [], [{ collectionName: 'test', doc: { response: 42 } }])
   );
   const noProvide = Q.queryFactory(Q.id(33));
-  const result = await shortQueryToStatePots([provide, noProvide])(
+  const result = shortQueryToStatePots([provide, noProvide])(
     query,
     [
       {
@@ -106,7 +122,7 @@ test('will find space where resource is available from potentiality', async t =>
   t.true(result[0].end === 5);
 });
 
-test('will find space where resource is available from material', async t => {
+test('will find space where resource is available from material', t => {
   const query = Q.queryFactory(
     Q.duration(Q.timeDuration(1)),
     Q.transforms([Q.need(true, 'test', { response: 42 }, 1)], [], [])
@@ -116,7 +132,7 @@ test('will find space where resource is available from material', async t => {
     Q.transforms([], [], [{ collectionName: 'test', doc: { response: 42 } }])
   );
   const noProvide = Q.queryFactory(Q.id(33));
-  const result = await shortQueryToStatePots([provide, noProvide])(
+  const result = shortQueryToStatePots([provide, noProvide])(
     query,
     [],
     [
@@ -176,7 +192,7 @@ test("will throw if waiting update isn't necessary", t => {
   t.is(transform.ref, 'ref');
 });
 
-test('will ignore non waiting output', async t => {
+test('will ignore non waiting output', t => {
   const provide = Q.queryFactory(
     Q.id(66),
     Q.transforms([], [], [{ collectionName: 'test', doc: { response: '42' } }])
@@ -189,7 +205,7 @@ test('will ignore non waiting output', async t => {
       [{ collectionName: 'test2', doc: { response: 33 } }]
     )
   );
-  const result = await shortQueryToStatePots([provide, query])(
+  const result = shortQueryToStatePots([provide, query])(
     query,
     [
       {
@@ -208,7 +224,7 @@ test('will ignore non waiting output', async t => {
   t.true(result[0].end === 5);
 });
 
-test('will find space from two providers (potentials) with space between provider', async t => {
+test('will find space from two providers (potentials) with space between provider', t => {
   const query = Q.queryFactory(
     Q.duration(Q.timeDuration(1)),
     Q.transforms(
@@ -225,7 +241,7 @@ test('will find space from two providers (potentials) with space between provide
     Q.id(66),
     Q.transforms([], [], [{ collectionName: 'toto', doc: { response: 66 } }])
   );
-  const result = await mediumQueryToStatePots([provideTiti, provideToto])(
+  const result = mediumQueryToStatePots([provideTiti, provideToto])(
     query,
     [
       {
@@ -252,7 +268,7 @@ test('will find space from two providers (potentials) with space between provide
   t.true(result[0].end === 10);
 });
 
-test('will find space from two providers (potentials) without space between provider', async t => {
+test('will find space from two providers (potentials) without space between provider', t => {
   const query = Q.queryFactory(
     Q.duration(Q.timeDuration(1)),
     Q.transforms(
@@ -269,7 +285,7 @@ test('will find space from two providers (potentials) without space between prov
     Q.id(66),
     Q.transforms([], [], [{ collectionName: 'toto', doc: { response: 66 } }])
   );
-  const result = await mediumQueryToStatePots([provideTiti, provideToto, query])(
+  const result = mediumQueryToStatePots([provideTiti, provideToto, query])(
     query,
     [
       {
@@ -296,7 +312,7 @@ test('will find space from two providers (potentials) without space between prov
   t.true(result[0].end === 10);
 });
 
-test("will try to works without provider's need satisfied", async t => {
+test("will try to works without provider's need satisfied", t => {
   const query = Q.queryFactory(
     Q.duration(Q.timeDuration(1)),
     Q.transforms([Q.need(true, 'test', { response: '42' }, 1)], [], [])
@@ -309,7 +325,7 @@ test("will try to works without provider's need satisfied", async t => {
       []
     )
   );
-  const result = await mediumQueryToStatePots([query, provide])(
+  const result = mediumQueryToStatePots([query, provide])(
     query,
     [
       {
@@ -328,7 +344,7 @@ test("will try to works without provider's need satisfied", async t => {
   t.true(result[0].end === 10);
 });
 
-test("will try to works without all prover's need satisfied", async t => {
+test("will try to works without all prover's need satisfied", t => {
   const dbObj = [{ collectionName: 'test', data: [{ response: '33' }] }];
 
   const query = Q.queryFactory(
@@ -343,7 +359,7 @@ test("will try to works without all prover's need satisfied", async t => {
       []
     )
   );
-  const result = await queryToStatePotentials(dbObj)(mediumConfig)([query, provide])(
+  const result = queryToStatePotentials(dbObj)(mediumConfig)([query, provide])(
     query,
     [
       {
@@ -362,7 +378,7 @@ test("will try to works without all prover's need satisfied", async t => {
   t.true(result[0].end === 10);
 });
 
-test('will find space thanks to update provider (potential)', async t => {
+test('will find space thanks to update provider (potential)', t => {
   const dbObj = [{ collectionName: 'titi', data: [{ response: ['66'] }] }];
 
   const query = Q.queryFactory(
@@ -386,7 +402,7 @@ test('will find space thanks to update provider (potential)', async t => {
       []
     )
   );
-  const result = await queryToStatePotentials(dbObj)(mediumConfig)([query, updateTiti])(
+  const result = queryToStatePotentials(dbObj)(mediumConfig)([query, updateTiti])(
     query,
     [
       {
@@ -418,7 +434,7 @@ test("will throw when provider's waiting insert isn't needed", t => {
   t.is(transform.collectionName, 'titi');
 });
 
-test("will ignore unecessary waiting update if corresponding need isn't found", async t => {
+test("will ignore unecessary waiting update if corresponding need isn't found", t => {
   const query = Q.queryFactory(
     Q.transforms(
       [Q.need(false, 'test', { response: 42 }, 1, 'ref')],
@@ -426,7 +442,7 @@ test("will ignore unecessary waiting update if corresponding need isn't found", 
       []
     )
   );
-  const result = await shortQueryToStatePots([])(query, [], []);
+  const result = shortQueryToStatePots([])(query, [], []);
   t.is(result.length, 1);
   t.is(result[0].start, 0);
   t.is(result[0].end, 5);
@@ -472,7 +488,7 @@ test('will throw when insert more than necessary', t => {
   t.is(transform.collectionName, 'test');
 });
 
-test('will find space where resource is lacking that the waiting output satisfies', async t => {
+test('will find space where resource is lacking that the waiting output satisfies', t => {
   const query1 = Q.queryFactory(
     Q.id(1),
     Q.duration(Q.timeDuration(1)),
@@ -517,7 +533,7 @@ test('will find space where resource is lacking that the waiting output satisfie
       [{ collectionName: 'titi', doc: { response: '66' }, wait: true }]
     )
   );
-  const result = await hugeQueryToStatePots([
+  const result = hugeQueryToStatePots([
     query1,
     query2,
     query3,

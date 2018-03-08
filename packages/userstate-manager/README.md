@@ -41,3 +41,31 @@ operations:
 - check query's output that wait to be lacking (provider's query)
 - build available mask (space where this resource is lacking)
 - intersect masks
+
+
+Error to handle:
+```
+userstateHandler([...queries])(query, [...otherPots], [...otherMats])
+query = consumer
+otherPots = [{start: 45, end: 49}]
+otherMats = [{start: 0, end: 4
+}]
+
+"Error: Object is not a document stored in the collection
+    at Collection.remove (webpack-internal:///1:5481:15)
+    at needResource.docs.forEach.doc (webpack-internal:///9:65:49)
+    at Array.forEach (<anonymous>)
+    at handleDelete (webpack-internal:///9:65:23)
+    at needResources.map.needResource (webpack-internal:///9:58:16)
+    at Array.map (<anonymous>)
+    at eval (webpack-internal:///9:52:26)
+    at eval (webpack-internal:///0:2434:14)
+    at eval (webpack-internal:///0:219:19)
+    at Object.exports.handleOutputTransformations (webpack-internal:///9:14:120)
+    at Object.exports.handleTransformations (webpack-internal:///9:5:20)
+    at Object.exports.computeRangeSatisfaction (webpack-internal:///8:12:49)
+    at eval (webpack-internal:///3:37:61)
+    at newUserstateHandler (/home/tchevrin/Téléchargements/github/queries-scheduler/src/data-flows/scheduler.flow.ts:207:59)
+    at R.unnest.queries.map.R.converge (/home/tchevrin/Téléchargements/github/queries-scheduler/src/data-flows/scheduler.flow.ts:237:24)
+    at /home/tchevrin/Téléchargements/github/queries-scheduler/node_modules/ramda/src/converge.js:47:17"
+```
