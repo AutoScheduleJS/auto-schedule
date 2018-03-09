@@ -85,6 +85,43 @@ test("will throw when one need is'nt satisfied but other are", t => {
   t.is(transform.collectionName, 'toto');
 });
 
+test('will find space with matetial and potential', t => {
+  const consumer = Q.queryFactory(
+    Q.id(1),
+    Q.name('consumer'),
+    Q.start(45),
+    Q.end(49),
+    Q.duration(Q.timeDuration(4, 2)),
+    Q.transforms([Q.need(false, 'col', { test: 'toto' }, 1, '1')], [], [])
+  );
+  const queries: Q.IQuery[] = [
+    consumer,
+    Q.queryFactory(
+      Q.id(2),
+      Q.name('provider'),
+      Q.duration(Q.timeDuration(4, 2)),
+      Q.transforms([], [], [{ collectionName: 'col', doc: { test: 'toto' }, wait: true }])
+    ),
+  ];
+  const result = hugeQueryToStatePots(queries)(
+    consumer,
+    [
+      {
+        duration: { min: 2, target: 4 },
+        isSplittable: false,
+        places: [{ end: 49, start: 45 }],
+        potentialId: 0,
+        pressure: 0.65,
+        queryId: 1,
+      },
+    ],
+    [{ end: 4, materialId: 0, queryId: 2, start: 0 }]
+  );
+  t.is(result.length, 1);
+  t.true(result[0].start === 0);
+  t.true(result[0].end === 50);
+});
+
 test('will find space where resource is available from potentiality', t => {
   const query = Q.queryFactory(
     Q.duration(Q.timeDuration(1)),

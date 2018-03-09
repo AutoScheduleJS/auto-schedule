@@ -117,7 +117,11 @@ const handleDelete = (
   if (!needResource.docs) {
     return needResource;
   }
-  needResource.docs.forEach(doc => collection.remove(doc));
+  needResource.docs.forEach(doc => {
+    if (doc.$loki && collection.get(doc.$loki)) {
+      collection.remove(doc);
+    }
+  });
   return { ...needResource, docs: undefined };
 };
 
