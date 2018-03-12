@@ -4,6 +4,7 @@ import test from 'ava';
 import { queryToStatePotentials } from './main.flow';
 
 import { IConfig } from '../data-structures/config.interface';
+import { ITransformSatisfaction } from '../data-structures/transform-satisfaction.interface';
 
 const shortConfig: IConfig = { startDate: 0, endDate: 5 };
 const mediumConfig: IConfig = { startDate: 0, endDate: 10 };
@@ -39,11 +40,11 @@ test('will run multiple simulation with same result', t => {
 
 test("will throw when needs aren't satisfied", t => {
   const query = Q.queryFactory(Q.transforms([Q.need(true)], [], []));
-  const e = t.throws(() => shortQueryToStatePots([])(query, [], []));
+  const e: ITransformSatisfaction[] = t.throws(() => shortQueryToStatePots([])(query, [], []));
   t.true(Array.isArray(e));
   t.is(e.length, 1);
-  t.is(e[0].range.start, 0);
-  t.is(e[0].range.end, 5);
+  t.is(e[0].ranges[0].start, 0);
+  t.is(e[0].ranges[0].end, 5);
   const transform = e[0].transform as Q.ITaskTransformNeed;
   t.is(transform.collectionName, 'test');
 });
@@ -61,7 +62,7 @@ test("will throw when one need is'nt satisfied but other are", t => {
     Q.id(66),
     Q.transforms([], [], [{ collectionName: 'titi', doc: { response: 42 } }])
   );
-  const e = t.throws(() =>
+  const e: ITransformSatisfaction[] = t.throws(() =>
     shortQueryToStatePots([provide, query])(
       query,
       [
@@ -79,8 +80,8 @@ test("will throw when one need is'nt satisfied but other are", t => {
   );
   t.true(Array.isArray(e));
   t.true(e.length === 5);
-  t.is(e[4].range.start, 3);
-  t.is(e[4].range.end, 5);
+  t.is(e[4].ranges[0].start, 3);
+  t.is(e[4].ranges[0].end, 5);
   const transform = e[4].transform as Q.ITaskTransformNeed;
   t.is(transform.collectionName, 'toto');
 });
@@ -205,7 +206,7 @@ test("will throw if waiting update isn't necessary", t => {
     Q.id(66),
     Q.transforms([], [], [{ collectionName: 'titi', doc: { response: '42' } }])
   );
-  const e = t.throws(() =>
+  const e: ITransformSatisfaction[] = t.throws(() =>
     shortQueryToStatePots([provide, query])(
       query,
       [
@@ -223,8 +224,8 @@ test("will throw if waiting update isn't necessary", t => {
   );
   t.true(Array.isArray(e));
   t.true(e.length === 3);
-  t.is(e[2].range.start, 0);
-  t.is(e[2].range.end, 0);
+  t.is(e[2].ranges[0].start, 0);
+  t.is(e[2].ranges[0].end, 0);
   const transform = e[2].transform as Q.ITaskTransformUpdate;
   t.is(transform.ref, 'ref');
 });
@@ -415,6 +416,35 @@ test("will try to works without all prover's need satisfied", t => {
   t.true(result[0].end === 10);
 });
 
+test('will find space from potentialities without simplifying result.', t => {
+  const consumer = Q.queryFactory(
+    Q.id(1),
+    Q.name('consumer'),
+    Q.transforms([Q.need(false, 'test', { response: '33' }, 1, 'ref')], [], [])
+  );
+  const provider = Q.queryFactory(
+    Q.id(2),
+    Q.name('provider'),
+    Q.transforms([], [], [{ collectionName: 'test', wait: true, doc: { response: '33' } }])
+  );
+  const result = hugeQueryToStatePots([consumer, provider])(
+    provider,
+    [
+      {
+        duration: { min: 4, target: 4 },
+        isSplittable: false,
+        places: [{ end: 49, start: 37 }, { end: 35, start: 31 }, { end: 20, start: 16 }],
+        potentialId: 0,
+        pressure: 0.5,
+        queryId: 1,
+      },
+    ],
+    []
+  );
+
+  t.is(result.length, 3);
+});
+
 test('will find space thanks to update provider (potential)', t => {
   const dbObj = [{ collectionName: 'titi', data: [{ response: ['66'] }] }];
 
@@ -462,11 +492,11 @@ test("will throw when provider's waiting insert isn't needed", t => {
   const query = Q.queryFactory(
     Q.transforms([], [], [{ collectionName: 'titi', doc: { useless: true }, wait: true }])
   );
-  const e = t.throws(() => shortQueryToStatePots([])(query, [], []));
+  const e: ITransformSatisfaction[] = t.throws(() => shortQueryToStatePots([])(query, [], []));
   t.true(Array.isArray(e));
   t.is(e.length, 1);
-  t.is(e[0].range.start, 0);
-  t.is(e[0].range.end, 0);
+  t.is(e[0].ranges[0].start, 0);
+  t.is(e[0].ranges[0].end, 0);
   const transform = e[0].transform as Q.ITaskTransformNeed;
   t.is(transform.collectionName, 'titi');
 });
@@ -501,7 +531,7 @@ test('will throw when insert more than necessary', t => {
       ]
     )
   );
-  const e = t.throws(() =>
+  const e: ITransformSatisfaction[] = t.throws(() =>
     mediumQueryToStatePots([query, provider])(
       provider,
       [
@@ -519,8 +549,10 @@ test('will throw when insert more than necessary', t => {
   );
   t.true(Array.isArray(e));
   t.is(e.length, 2);
-  t.is(e[0].range.start, 0);
-  t.is(e[0].range.end, 7);
+  t.is(e[0].ranges[0].start, 0);
+  t.is(e[0].ranges[0].end, 1);
+  t.is(e[0].ranges[1].start, 1);
+  t.is(e[0].ranges[1].end, 7);
   const transform = e[0].transform as Q.ITaskTransformInsert;
   t.is(transform.collectionName, 'test');
 });

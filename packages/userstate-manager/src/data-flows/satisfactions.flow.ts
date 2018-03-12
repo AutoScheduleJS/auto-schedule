@@ -5,10 +5,10 @@ import {
   ITransformation,
 } from '@autoschedule/queries-fn';
 import * as loki from 'lokijs';
-import { times } from 'ramda';
+import { aperture, times } from 'ramda';
 
 import { IIdentifier } from '../data-structures/identifier.interface';
-import { INeedResource } from '../data-structures/need-resource.interface';
+import { IGroupNeedResource, INeedResource } from '../data-structures/need-resource.interface';
 import {
   INeedSatisfaction,
   IRangeNeedSatisfaction,
@@ -46,7 +46,7 @@ export const computeRangeSatisfaction = (
 export const computeOutputSatisfaction = (
   config: IRange,
   queryDocs: IRefDoc[],
-  needResources: INeedResource[],
+  needResources: IGroupNeedResource[],
   transforms: ITransformation,
   shrinkSpace: (id: IIdentifier) => number
 ): ITransformSatisfaction[] => {
@@ -77,19 +77,24 @@ const docMatchFindFromCol = (col: Collection<any>) => (doc: any, find: any) => {
   return col.find(find);
 };
 
-const firstNeedResource = (nrToMT: (nr: INeedResource) => number) => (
-  a: INeedResource,
-  b: INeedResource
-) => (nrToMT(a) < nrToMT(b) ? a : b);
+const lastFromList = <T extends {}>(list: ReadonlyArray<T>): T => {
+  return list[list.length - 1];
+};
+
+// Use lastFromList instead of maxFromList because nrToMT's result is already sorted.
+const firstNeedResource = (nrToMT: (nr: IGroupNeedResource) => number[]) => (
+  a: IGroupNeedResource,
+  b: IGroupNeedResource
+) => (lastFromList(nrToMT(a)) < lastFromList(nrToMT(b)) ? a : b);
 
 const computeUpdateSatisfaction = (
   configRange: IRange,
   docMatchFind: (doc: any, find: any) => any[],
-  nrToMT: (nr: INeedResource) => number,
-  needResources: INeedResource[],
+  nrToMT: (nr: IGroupNeedResource) => number[],
+  needResources: IGroupNeedResource[],
   updates: ReadonlyArray<ITaskTransformUpdate>,
   queryDocs: IRefDoc[]
-): [ITransformSatisfaction[], INeedResource[]] => {
+): [ITransformSatisfaction[], IGroupNeedResource[]] => {
   const outputSatis: ITransformSatisfaction[] = [];
   let newNeedResources = [...needResources];
 
@@ -97,7 +102,7 @@ const computeUpdateSatisfaction = (
     const update = updates[updateI];
     const docRef = queryDocs.find(qd => qd.ref === update.ref);
     if (!update.wait || !docRef) {
-      return outputSatis.push({ transform: update, range: configRange });
+      return outputSatis.push({ transform: update, ranges: [configRange] });
     }
     return docRef.docs.forEach(doc => {
       const insert = {
@@ -106,25 +111,27 @@ const computeUpdateSatisfaction = (
       };
       const allNR = satisfiedFromInsertNeedResources(insert, newNeedResources, docMatchFind);
       if (!allNR.length) {
-        return outputSatis.push({ transform: update, range: { start: 0, end: 0 } });
+        return outputSatis.push({ transform: update, ranges: [{ start: 0, end: 0 }] });
       }
       const minNR = allNR.reduce(firstNeedResource(nrToMT));
-      const range: IRange = {
-        end: nrToMT(minNR),
-        start: configRange.start,
-      };
+      // TODO: enhance this to not end at need's start. Use minDuration
+      const ranges: IRange[] = aperture(2, [configRange.start, ...nrToMT(minNR)]).map(range =>
+        rangeArrToRangeSE(range as [number, number])
+      );
       newNeedResources = updateMissing(newNeedResources, minNR);
-      return outputSatis.push({ range, transform: update });
+      return outputSatis.push({ ranges, transform: update });
     });
   }, updates.length);
   return [outputSatis, newNeedResources];
 };
 
+const rangeArrToRangeSE = (range: [number, number]): IRange => ({ end: range[1], start: range[0] });
+
 const computeInsertSatisfaction = (
   configRange: IRange,
   docMatchFind: (doc: any, find: any) => any[],
-  nrToMT: (nr: INeedResource) => number,
-  needResources: INeedResource[],
+  nrToMT: (nr: IGroupNeedResource) => number[],
+  needResources: IGroupNeedResource[],
   inserts: ReadonlyArray<ITaskTransformInsert>
 ): ITransformSatisfaction[] => {
   const outputSatis: ITransformSatisfaction[] = [];
@@ -133,28 +140,27 @@ const computeInsertSatisfaction = (
   times(insertI => {
     const insert = inserts[insertI];
     if (!insert.wait) {
-      return outputSatis.push({ transform: insert, range: configRange });
+      return outputSatis.push({ transform: insert, ranges: [configRange] });
     }
     const allNR = satisfiedFromInsertNeedResources(insert, newNeedResources, docMatchFind);
     if (!allNR.length) {
-      return outputSatis.push({ transform: insert, range: { start: 0, end: 0 } });
+      return outputSatis.push({ transform: insert, ranges: [{ start: 0, end: 0 }] });
     }
     const minNR = allNR.reduce(firstNeedResource(nrToMT));
-    const range: IRange = {
-      end: nrToMT(minNR),
-      start: configRange.start,
-    };
+    const ranges: IRange[] = aperture(2, [configRange.start, ...nrToMT(minNR)]).map(range =>
+      rangeArrToRangeSE(range as [number, number])
+    );
     newNeedResources = updateMissing(newNeedResources, minNR);
-    return outputSatis.push({ range, transform: insert });
+    return outputSatis.push({ ranges, transform: insert });
   }, inserts.length);
   return outputSatis;
 };
 
 const satisfiedFromInsertNeedResources = (
   insert: ITaskTransformInsert,
-  needResources: INeedResource[],
+  needResources: IGroupNeedResource[],
   match: (d: any, f: any) => any[]
-): INeedResource[] => {
+): IGroupNeedResource[] => {
   return needResources.filter(
     res =>
       res.collectionName === insert.collectionName &&
@@ -177,12 +183,15 @@ const computeNeedSatisfaction = (
   });
 
 const needResourceToMissingTime = (shrinkSpace: (id: IIdentifier) => number) => (
-  nr: INeedResource
+  nr: IGroupNeedResource
 ) => {
-  return (nr.missingTime[nr.missingTime.length - 1] as number) + shrinkSpace(nr.id);
+  return nr.missingTime.map((mt, i) => mt + shrinkSpace(nr.ids[i]));
 };
 
-const updateMissing = (list: INeedResource[], elem: INeedResource): INeedResource[] => {
+const updateMissing = (
+  list: IGroupNeedResource[],
+  elem: IGroupNeedResource
+): IGroupNeedResource[] => {
   const result = [...list];
   const i = list.findIndex(el => el === elem);
   result.splice(i, 1);

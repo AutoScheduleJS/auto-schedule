@@ -5,16 +5,13 @@ import { groupWith, prop, sortBy, unnest } from 'ramda';
 
 import { IConfig } from '../data-structures/config.interface';
 import { IIdentifier } from '../data-structures/identifier.interface';
-import { INeedResource } from '../data-structures/need-resource.interface';
+import { IGroupNeedResource, INeedResource } from '../data-structures/need-resource.interface';
 import { IRangeNeedSatisfaction } from '../data-structures/need-satisfaction.interface';
 import { IMaterial, IPotentiality, IRange } from '../data-structures/queries-scheduler.interface';
 import { IRefDoc } from '../data-structures/ref-doc.interface';
 import { ITransformSatisfaction } from '../data-structures/transform-satisfaction.interface';
-import {
-  allTransfo,
-  ITransformationTime,
-} from '../data-structures/transformation-time.interface';
-import { IUserstateCollection } from '../data-structures/userstate-collection.interface';
+import { allTransfo, ITransformationTime } from '../data-structures/transformation-time.interface';
+import { IUserstateCollection } from '../data-structures/userstate-collection.interface';
 
 import { computeOutputSatisfaction, computeRangeSatisfaction } from './satisfactions.flow';
 
@@ -44,16 +41,36 @@ const useSameResources = (a: INeedResource, b: INeedResource): boolean => {
   );
 };
 
-const groupNeedResources = (needResources: INeedResource[]) => {
-  return groupWith<INeedResource>(useSameResources)(sortByMissingTime(needResources)).map(
-    needRes =>
-      needRes.reduce((a, b) => ({ ...a, missingTime: [...a.missingTime, ...b.missingTime] }))
+const initialGroupNR: IGroupNeedResource = {
+  collectionName: '',
+  find: {},
+  ids: [],
+  missing: 0,
+  missingTime: [],
+  quantity: 0,
+  ref: '',
+};
+
+const groupNeedResources = (needResources: INeedResource[]): IGroupNeedResource[] => {
+  return groupWith<INeedResource>(useSameResources)(sortByMissingTime(needResources)).map(needRes =>
+    needRes.reduce(
+      (a, b) => ({
+        ...b,
+        ids: [...a.ids, b.id],
+        missingTime: [...a.missingTime, ...b.missingTime],
+      }),
+      initialGroupNR
+    )
   );
 };
 
-export const queryToStatePotentials = (baseState: ReadonlyArray<IUserstateCollection>) => (config: IConfig) => (
-  queries: IQuery[]
-) => (query: IQuery, potentials: IPotentiality[], materials: IMaterial[]): IRange[] => {
+export const queryToStatePotentials = (baseState: ReadonlyArray<IUserstateCollection>) => (
+  config: IConfig
+) => (queries: IQuery[]) => (
+  query: IQuery,
+  potentials: IPotentiality[],
+  materials: IMaterial[]
+): IRange[] => {
   if (!query.transforms) {
     return [configToRange(config)];
   }
@@ -70,15 +87,17 @@ export const queryToStatePotentials = (baseState: ReadonlyArray<IUserstateCollec
     transforms,
     idToShrinkSpace(shrinkSpaces)
   );
-  const outputRange = outputSatis.map(s => s.range).reduce((a, b) => {
-    const res = intersect(a, b);
-    return res.length ? res[0] : { start: 0, end: 0 };
-  }, configRange);
+  const outputRange = outputSatis.reduce(reduceOutputSatis, [configRange]);
   const result = intersect(simplify(needSatis.filter(rangeSatisEligible)), outputRange);
-  if (result.length) {
+  if (result.length && result.every(range => range.start !== 0 || range.end !== 0)) {
     return result;
   }
   throw insatisToError(needSatis, outputSatis);
+};
+
+const reduceOutputSatis = (a: IRange[], b: ITransformSatisfaction): IRange[] => {
+  const res = intersect(a, b.ranges);
+  return res.length ? res : [{ start: 0, end: 0 }];
 };
 
 const rangeSatisToTransfoSatis = (
@@ -88,7 +107,7 @@ const rangeSatisToTransfoSatis = (
     rangeNeedSatis.map(nsObj =>
       nsObj.needSatisfactions
         .filter(ns => !ns.satisfied)
-        .map(ns => ({ range: { start: nsObj.start, end: nsObj.end }, transform: ns.need }))
+        .map(ns => ({ ranges: [{ start: nsObj.start, end: nsObj.end }], transform: ns.need }))
     )
   );
 };

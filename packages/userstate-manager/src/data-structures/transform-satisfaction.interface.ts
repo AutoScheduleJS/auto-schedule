@@ -8,6 +8,6 @@ import { IRange } from './queries-scheduler.interface';
 export type transformType = ITaskTransformInsert | ITaskTransformNeed | ITaskTransformUpdate;
 
 export interface ITransformSatisfaction {
-  range: IRange;
+  ranges: ReadonlyArray<IRange>;
   transform: transformType;
 }
