@@ -48,7 +48,8 @@ export const computeOutputSatisfaction = (
   queryDocs: IRefDoc[],
   needResources: IGroupNeedResource[],
   transforms: ITransformation,
-  shrinkSpace: (id: IIdentifier) => number
+  shrinkSpace: (id: IIdentifier) => number,
+  queryId: string
 ): ITransformSatisfaction[] => {
   const nrToMT = needResourceToMissingTime(shrinkSpace);
   const db = new loki('satis');
@@ -66,7 +67,8 @@ export const computeOutputSatisfaction = (
     docMatchFind,
     nrToMT,
     newNeedRes,
-    transforms.inserts
+    transforms.inserts,
+    queryId
   );
   return [...outputSatisInsert, ...outputSatisUpdate];
 };
@@ -132,7 +134,8 @@ const computeInsertSatisfaction = (
   docMatchFind: (doc: any, find: any) => any[],
   nrToMT: (nr: IGroupNeedResource) => number[],
   needResources: IGroupNeedResource[],
-  inserts: ReadonlyArray<ITaskTransformInsert>
+  inserts: ReadonlyArray<ITaskTransformInsert>,
+  queryId: string
 ): ITransformSatisfaction[] => {
   const outputSatis: ITransformSatisfaction[] = [];
   let newNeedResources = [...needResources];
@@ -142,7 +145,9 @@ const computeInsertSatisfaction = (
     if (!insert.wait) {
       return outputSatis.push({ transform: insert, ranges: [configRange] });
     }
-    const allNR = satisfiedFromInsertNeedResources(insert, newNeedResources, docMatchFind);
+    const allNR = satisfiedFromInsertNeedResources(insert, newNeedResources, docMatchFind).filter(
+      nr => nr.ids.every(id => id.query !== queryId)
+    );
     if (!allNR.length) {
       return outputSatis.push({ transform: insert, ranges: [{ start: 0, end: 0 }] });
     }

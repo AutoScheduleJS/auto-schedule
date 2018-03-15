@@ -8,10 +8,12 @@ import { ITransformSatisfaction } from '../data-structures/transform-satisfactio
 
 const shortConfig: IConfig = { startDate: 0, endDate: 5 };
 const mediumConfig: IConfig = { startDate: 0, endDate: 10 };
-const hugeConfig: IConfig = { startDate: 0, endDate: 50 };
+const largeConfig: IConfig = { startDate: 0, endDate: 50 };
+const hugeConfig: IConfig = { startDate: 0, endDate: 100 };
 const queryToStateDB = queryToStatePotentials([]);
 const shortQueryToStatePots = queryToStateDB(shortConfig);
 const mediumQueryToStatePots = queryToStateDB(mediumConfig);
+const largeQueryToStatePots = queryToStateDB(largeConfig);
 const hugeQueryToStatePots = queryToStateDB(hugeConfig);
 
 test('will return config when no needs', t => {
@@ -104,7 +106,7 @@ test('will find space with matetial and potential', t => {
       Q.transforms([], [], [{ collectionName: 'col', doc: { test: 'toto' }, wait: true }])
     ),
   ];
-  const result = hugeQueryToStatePots(queries)(
+  const result = largeQueryToStatePots(queries)(
     consumer,
     [
       {
@@ -427,7 +429,7 @@ test('will find space from potentialities without simplifying result.', t => {
     Q.name('provider'),
     Q.transforms([], [], [{ collectionName: 'test', wait: true, doc: { response: '33' } }])
   );
-  const result = hugeQueryToStatePots([consumer, provider])(
+  const result = largeQueryToStatePots([consumer, provider])(
     provider,
     [
       {
@@ -513,6 +515,53 @@ test("will ignore unecessary waiting update if corresponding need isn't found", 
   t.is(result.length, 1);
   t.is(result[0].start, 0);
   t.is(result[0].end, 5);
+});
+
+test('will not try to satisfy its own needs', t => {
+  const queries: Q.IQuery[] = [
+    Q.queryFactory(
+      Q.id(1),
+      Q.name('consumer'),
+      Q.duration(Q.timeDuration(4, 2)),
+      Q.transforms([Q.need(false, 'col', { test: 'toto' }, 1, '1')], [], [])
+    ),
+    Q.queryFactory(
+      Q.id(2),
+      Q.name('provider'),
+      Q.duration(Q.timeDuration(4, 2)),
+      Q.transforms(
+        [Q.need(false, 'col', {}, 1, '1')],
+        [],
+        [{ collectionName: 'col', doc: { test: 'toto' }, wait: true }]
+      )
+    ),
+  ];
+  const duration = { min: 2, target: 4 };
+  const result = hugeQueryToStatePots(queries)(
+    queries[1],
+    [
+      {
+        duration,
+        isSplittable: false,
+        places: [{ end: 100, start: 0 }],
+        potentialId: 0,
+        pressure: 1,
+        queryId: 1,
+      },
+      {
+        duration,
+        isSplittable: false,
+        places: [{ end: 98, start: 0 }],
+        potentialId: 0,
+        pressure: 1,
+        queryId: 2,
+      },
+    ],
+    []
+  );
+  t.is(result.length, 1);
+  t.is(result[0].start, 0);
+  t.is(result[0].end, 98);
 });
 
 test('will throw when insert more than necessary', t => {
@@ -602,7 +651,7 @@ test('will find space where resource is lacking that the waiting output satisfie
       [{ collectionName: 'titi', doc: { response: '66' }, wait: true }]
     )
   );
-  const result = hugeQueryToStatePots([
+  const result = largeQueryToStatePots([
     query1,
     query2,
     query3,

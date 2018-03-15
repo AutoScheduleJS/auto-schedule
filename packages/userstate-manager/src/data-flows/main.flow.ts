@@ -85,7 +85,8 @@ export const queryToStatePotentials = (baseState: ReadonlyArray<IUserstateCollec
     rangeNeedSatisToDocs(needSatis),
     groupNeedResources(needResources),
     transforms,
-    idToShrinkSpace(shrinkSpaces)
+    idToShrinkSpace(shrinkSpaces),
+    '' + query.id
   );
   const outputRange = outputSatis.reduce(reduceOutputSatis, [configRange]);
   const result = intersect(simplify(needSatis.filter(rangeSatisEligible)), outputRange);
