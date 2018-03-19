@@ -36,6 +36,7 @@ export interface ITaskTransformUpdate {
 export interface ITaskTransformInsert {
   readonly collectionName: string;
   readonly doc: any;
+  readonly quantity: number;
   readonly wait?: boolean;
 }
 
@@ -74,11 +75,21 @@ export interface ITimeRestrictions {
   readonly month?: ITimeRestriction;
 }
 
+export type QueryID = number;
+
+export interface IQueryLink {
+  queryId: QueryID;
+  potentialId: number;
+  splitId?: number;
+  distance: ITimeBoundary;
+}
+
 export interface IBaseQuery {
-  readonly id: number;
+  readonly id: QueryID;
   readonly name: string;
   readonly kind: QueryKind;
   readonly transforms?: ITransformation;
+  readonly links?: ReadonlyArray<IQueryLink>
 }
 
 export interface IGoalQuery extends IBaseQuery {
@@ -90,8 +101,4 @@ export interface IAtomicQuery extends IBaseQuery {
   readonly start?: ITimeBoundary;
   readonly end?: ITimeBoundary;
   readonly duration?: ITimeDuration;
-}
-
-export interface IProviderQuery extends IAtomicQuery {
-  readonly timeRestrictions?: ITimeRestrictions;
 }

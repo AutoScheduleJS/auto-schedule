@@ -4,7 +4,7 @@ import {
   IAtomicQuery,
   IGoal,
   IGoalQuery,
-  IProviderQuery,
+  IQueryLink,
   ITaskTransformInsert,
   ITaskTransformNeed,
   ITaskTransformUpdate,
@@ -12,13 +12,14 @@ import {
   ITimeDuration,
   ITimeRestrictions,
   ITransformation,
+  QueryID,
   QueryKind,
   RestrictionCondition,
 } from './data.structures';
 
 export * from './data.structures';
 
-export type IQuery = IAtomicQuery | IGoalQuery | IProviderQuery;
+export type IQuery = IAtomicQuery | IGoalQuery;
 
 /**
  * Construct query's `name` property.
@@ -42,13 +43,15 @@ export const id = (idNb?: number): Record<'id', number> => ({ id: idNb || 42 });
 
 const tb = <T extends 'start' | 'end'>(t: T) => (
   target: number,
-  minTime?: number
+  minTime?: number,
+  maxTime?: number
 ): Record<T, ITimeBoundary> => {
   const min = minTime || target;
+  const max = maxTime || target;
   return assoc(
     t,
     {
-      max: target,
+      max,
       min,
       target,
     },
@@ -86,6 +89,22 @@ export const timeDuration = (target: number, minTime?: number): ITimeDuration =>
 export const duration = (dur: ITimeDuration): Record<'duration', ITimeDuration> => {
   return assoc('duration', dur, {});
 };
+
+export const queryLink = (
+  distance: ITimeBoundary,
+  queryId: QueryID,
+  potentialId: number,
+  splitId?: number
+): IQueryLink => ({
+  distance,
+  potentialId,
+  queryId,
+  splitId,
+});
+
+export const links = (...queryLinks: IQueryLink[]): Record<'links', ReadonlyArray<IQueryLink>> => {
+  return assoc('links', queryLinks, {});
+}
 
 /**
  * Construct a `timeRestriction`
@@ -172,12 +191,8 @@ export const isGoalQuery = (query: IQuery): query is IGoalQuery => {
   return (query as IGoalQuery).goal != null;
 };
 
-export const isProviderQuery = (query: IQuery): query is IProviderQuery => {
-  return !isGoalQuery(query) && query.transforms != null;
-};
-
 export const isAtomicQuery = (query: IQuery): query is IAtomicQuery => {
-  return !isGoalQuery(query) && (query as IProviderQuery).timeRestrictions == null;
+  return !isGoalQuery(query) && (query as IGoalQuery).timeRestrictions == null;
 };
 
 export const sanitize = (query: any): IQuery => {
@@ -197,13 +212,13 @@ export const sanitize = (query: any): IQuery => {
   });
   return {
     ...result,
-    ...!result.transforms
+    ...(!result.transforms
       ? {}
       : transforms(
           (result.transforms.needs || []).filter(isTaskTransformNeed),
           (result.transforms.updates || []).filter(isTaskTransformUpdate),
           (result.transforms.inserts || []).filter(isTaskTransformInsert)
-        ),
+        )),
   };
 };
 

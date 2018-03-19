@@ -1,7 +1,7 @@
 import test from 'ava';
 import { has } from 'ramda';
 
-import { IAtomicQuery, IGoalQuery, IProviderQuery } from './data.structures';
+import { IAtomicQuery, IGoalQuery } from './data.structures';
 import * as Q from './index';
 
 const hasBasic = (t: any, query: Q.IQuery): void => {
@@ -103,6 +103,19 @@ test('will add needs transform', t => {
   t.is(query.transforms && query.transforms.needs[0].ref, '1');
 });
 
+test('will add links', t => {
+  const query = Q.queryFactory(Q.links(Q.queryLink({ min: -5, max: 0 }, 1, 0)));
+  hasBasic(t, query);
+  t.true(query.links != null);
+  t.is(query.links && query.links.length, 1);
+  t.is(query.links && query.links[0].distance.min, -5);
+  t.is(query.links && query.links[0].distance.max, 0);
+  t.is(query.links && query.links[0].distance.target, undefined);
+  t.is(query.links && query.links[0].potentialId, 0);
+  t.is(query.links && query.links[0].queryId, 1);
+  t.is(query.links && query.links[0].splitId, undefined);
+});
+
 test('will set correct delete transforms', t => {
   const query = Q.queryFactory(
     Q.transforms(
@@ -120,36 +133,23 @@ test('will set correct delete transforms', t => {
 test('will typeguard goal query', t => {
   const query = Q.queryFactory(Q.goal(Q.GoalKind.Atomic, Q.timeDuration(1), 1));
   t.false(Q.isAtomicQuery(query));
-  t.false(Q.isProviderQuery(query));
   t.true(Q.isGoalQuery(query));
-});
-
-test('will typeguard provider query', t => {
-  const query = Q.queryFactory<Q.IProviderQuery>(
-    Q.timeRestrictions('hour', Q.RestrictionCondition.InRange, [[0, 1]]),
-    Q.transforms([], [], [])
-  );
-  t.false(Q.isAtomicQuery(query));
-  t.true(Q.isProviderQuery(query));
-  t.false(Q.isGoalQuery(query));
 });
 
 test('will typeguard atomic query without transforms', t => {
   const query = Q.queryFactory(Q.start(1), Q.end(2));
   t.true(Q.isAtomicQuery(query));
-  t.false(Q.isProviderQuery(query));
   t.false(Q.isGoalQuery(query));
 });
 
 test('will typeguard atomic query with transforms', t => {
   const query = Q.queryFactory(Q.start(1), Q.end(2), Q.transforms([], [], []));
   t.true(Q.isAtomicQuery(query));
-  t.true(Q.isProviderQuery(query));
   t.false(Q.isGoalQuery(query));
 });
 
 test('will sanitize query', t => {
-  const query: IAtomicQuery & IProviderQuery = Q.sanitize({
+  const query: IAtomicQuery = Q.sanitize({
     end: undefined,
     id: 1,
     kind: 1,
@@ -159,18 +159,18 @@ test('will sanitize query', t => {
       needs: [{ collectionName: 'test', find: {}, quantity: 1, ref: 'ref', wait: false }],
     },
   });
-  const query2: IAtomicQuery & IProviderQuery = Q.sanitize({
+  const query2: IAtomicQuery = Q.sanitize({
     id: 1,
     kind: 1,
     name: 'query',
   });
-  const query3: IAtomicQuery & IProviderQuery = Q.sanitize({
+  const query3: IAtomicQuery = Q.sanitize({
     id: 1,
     kind: 1,
     name: 'query',
     transforms: { updates: [], inserts: [] },
   });
-  const query4: IAtomicQuery & IProviderQuery = Q.sanitize({
+  const query4: IAtomicQuery = Q.sanitize({
     id: 1,
     kind: 1,
     name: 'query',
