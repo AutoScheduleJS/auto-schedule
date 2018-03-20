@@ -104,7 +104,7 @@ test('will add needs transform', t => {
 });
 
 test('will add links', t => {
-  const query = Q.queryFactory(Q.links(Q.queryLink({ min: -5, max: 0 }, 1, 0)));
+  const query = Q.queryFactory(Q.links(Q.queryLink({ min: -5, max: 0 }, 'start', 1, 0)));
   hasBasic(t, query);
   t.true(query.links != null);
   t.is(query.links && query.links.length, 1);
@@ -113,6 +113,7 @@ test('will add links', t => {
   t.is(query.links && query.links[0].distance.target, undefined);
   t.is(query.links && query.links[0].potentialId, 0);
   t.is(query.links && query.links[0].queryId, 1);
+  t.is(query.links && query.links[0].origin, 'start');
   t.is(query.links && query.links[0].splitId, undefined);
 });
 

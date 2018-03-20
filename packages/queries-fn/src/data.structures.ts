@@ -82,6 +82,7 @@ export interface IQueryLink {
   potentialId: number;
   splitId?: number;
   distance: ITimeBoundary;
+  origin: 'start' | 'end';
 }
 
 export interface IBaseQuery {

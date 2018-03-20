@@ -92,11 +92,13 @@ export const duration = (dur: ITimeDuration): Record<'duration', ITimeDuration> 
 
 export const queryLink = (
   distance: ITimeBoundary,
+  origin: 'start' | 'end',
   queryId: QueryID,
   potentialId: number,
-  splitId?: number
+  splitId?: number,
 ): IQueryLink => ({
   distance,
+  origin,
   potentialId,
   queryId,
   splitId,
