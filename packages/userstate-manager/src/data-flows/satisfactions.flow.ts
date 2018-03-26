@@ -102,7 +102,7 @@ const computeUpdateSatisfaction = (
 
   times(updateI => {
     const update = updates[updateI];
-    const docRef = queryDocs.find(qd => qd.ref === update.ref);
+    const docRef = queryDocs.find(qd => qd.ref === update.ref); // should be array
     if (!update.wait || !docRef) {
       return outputSatis.push({ transform: update, ranges: [configRange] });
     }
@@ -110,6 +110,7 @@ const computeUpdateSatisfaction = (
       const insert = {
         collectionName: docRef.collectionName,
         doc: updateDoc(doc, update.update),
+        quantity: 1,
       };
       const allNR = satisfiedFromInsertNeedResources(insert, newNeedResources, docMatchFind);
       if (!allNR.length) {
@@ -138,6 +139,7 @@ const computeInsertSatisfaction = (
   queryId: string
 ): ITransformSatisfaction[] => {
   const outputSatis: ITransformSatisfaction[] = [];
+  const errorRange: IRange = { start: 0, end: 0 };
   let newNeedResources = [...needResources];
 
   times(insertI => {
@@ -149,14 +151,18 @@ const computeInsertSatisfaction = (
       nr => nr.ids.every(id => id.query !== queryId)
     );
     if (!allNR.length) {
-      return outputSatis.push({ transform: insert, ranges: [{ start: 0, end: 0 }] });
+      return outputSatis.push({ transform: insert, ranges: [errorRange] });
     }
     const minNR = allNR.reduce(firstNeedResource(nrToMT));
     const ranges: IRange[] = aperture(2, [configRange.start, ...nrToMT(minNR)]).map(range =>
       rangeArrToRangeSE(range as [number, number])
     );
     newNeedResources = updateMissing(newNeedResources, minNR);
-    return outputSatis.push({ ranges, transform: insert });
+    return times(sameInsertI => {
+      return allNR.length > sameInsertI
+        ? outputSatis.push({ ranges, transform: insert })
+        : outputSatis.push({ ranges: [errorRange], transform: insert });
+    }, insert.quantity);
   }, inserts.length);
   return outputSatis;
 };

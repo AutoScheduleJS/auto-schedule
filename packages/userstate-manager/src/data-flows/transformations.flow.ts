@@ -47,7 +47,7 @@ const handleInserts = (
   inserts.forEach(insertObj => {
     const insert = insertObj.transfo;
     const col = getOrCreateCollection(db, insert.collectionName);
-    col.insert({ ...insert.doc });
+    col.insert(times(_ => ({...insert.doc}), insert.quantity));
   });
 };
 

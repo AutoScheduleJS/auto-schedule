@@ -5,6 +5,7 @@ import { queryToStatePotentials } from './main.flow';
 
 import { IConfig } from '../data-structures/config.interface';
 import { ITransformSatisfaction } from '../data-structures/transform-satisfaction.interface';
+import { IUserstateCollection } from '../data-structures/userstate-collection.interface';
 
 const shortConfig: IConfig = { startDate: 0, endDate: 5 };
 const mediumConfig: IConfig = { startDate: 0, endDate: 10 };
@@ -26,7 +27,7 @@ test('will return config when no needs', t => {
 
 test('will run multiple simulation with same result', t => {
   const query = Q.queryFactory(
-    Q.transforms([], [], [{ collectionName: 'col', doc: { test: 'test' } }])
+    Q.transforms([], [], [{ quantity: 1, collectionName: 'col', doc: { test: 'test' } }])
   );
   const result1 = shortQueryToStatePots([query])(query, [], []);
   const result2 = shortQueryToStatePots([query])(query, [], []);
@@ -51,7 +52,65 @@ test("will throw when needs aren't satisfied", t => {
   t.is(transform.collectionName, 'test');
 });
 
-test("will throw when one need is'nt satisfied but other are", t => {
+test('will place query near provider using insert quantity property', t => {
+  const consumer = Q.queryFactory(
+    Q.id(1),
+    Q.transforms([Q.need(true, 'col', { response: '42' }, 3)], [], [])
+  );
+  const provider = Q.queryFactory(
+    Q.id(2),
+    Q.transforms([], [], [{ collectionName: 'col', doc: { response: '42' }, quantity: 3 }])
+  );
+  const result = mediumQueryToStatePots([consumer, provider])(consumer, [], [{ end: 5, materialId: 0, queryId: 2, start: 4 }]);
+  t.true(Array.isArray(result));
+  t.is(result.length, 1);
+  t.is(result[0].start, 5);
+  t.is(result[0].end, 10);
+});
+
+test('will trown when only a part of update from same need is needed', t => {
+  const dbObj: IUserstateCollection[] = [
+    {
+      collectionName: 'col',
+      data: [
+        { response: '33' },
+        { response: '33' },
+        { response: '33' },
+        { response: '33' },
+        { response: '33' },
+        { response: '33' },
+      ],
+    },
+  ];
+  const consumer = Q.queryFactory(
+    Q.id(1),
+    Q.duration(Q.timeDuration(1)),
+    Q.name('consumer'),
+    Q.transforms([Q.need(false, 'col', { response: '42' }, 2)], [], [])
+  );
+  const provider = Q.queryFactory(
+    Q.id(2),
+    Q.name('provider'),
+    Q.duration(Q.timeDuration(2)),
+    Q.transforms(
+      [Q.need(false, 'col', { response: '33' }, 5, 'ref')],
+      [{ ref: 'ref', update: [{ property: 'response', value: '42' }], wait: true }],
+      []
+    )
+  );
+  const e: ITransformSatisfaction[] = t.throws(() =>
+    queryToStatePotentials(dbObj)(mediumConfig)([consumer, provider])(
+      provider,
+      [],
+      [{ end: 7, materialId: 0, queryId: 1, start: 6 }]
+    )
+  );
+  t.true(Array.isArray(e));
+  t.is(e.length, 5);
+  t.is(e.filter(satis => satis.ranges[0].start === 0 && satis.ranges[0].end === 0).length, 3);
+});
+
+test("will throw when one need isn't satisfied but other are", t => {
   const query = Q.queryFactory(
     Q.duration(Q.timeDuration(1)),
     Q.transforms(
@@ -62,7 +121,7 @@ test("will throw when one need is'nt satisfied but other are", t => {
   );
   const provide = Q.queryFactory(
     Q.id(66),
-    Q.transforms([], [], [{ collectionName: 'titi', doc: { response: 42 } }])
+    Q.transforms([], [], [{ quantity: 1, collectionName: 'titi', doc: { response: 42 } }])
   );
   const e: ITransformSatisfaction[] = t.throws(() =>
     shortQueryToStatePots([provide, query])(
@@ -103,7 +162,11 @@ test('will find space with matetial and potential', t => {
       Q.id(2),
       Q.name('provider'),
       Q.duration(Q.timeDuration(4, 2)),
-      Q.transforms([], [], [{ collectionName: 'col', doc: { test: 'toto' }, wait: true }])
+      Q.transforms(
+        [],
+        [],
+        [{ quantity: 1, collectionName: 'col', doc: { test: 'toto' }, wait: true }]
+      )
     ),
   ];
   const result = largeQueryToStatePots(queries)(
@@ -132,7 +195,7 @@ test('will find space where resource is available from potentiality', t => {
   );
   const provide = Q.queryFactory(
     Q.id(66),
-    Q.transforms([], [], [{ collectionName: 'test', doc: { response: 42 } }])
+    Q.transforms([], [], [{ quantity: 1, collectionName: 'test', doc: { response: 42 } }])
   );
   const noProvide = Q.queryFactory(Q.id(33));
   const result = shortQueryToStatePots([provide, noProvide])(
@@ -169,7 +232,7 @@ test('will find space where resource is available from material', t => {
   );
   const provide = Q.queryFactory(
     Q.id(66),
-    Q.transforms([], [], [{ collectionName: 'test', doc: { response: 42 } }])
+    Q.transforms([], [], [{ quantity: 1, collectionName: 'test', doc: { response: 42 } }])
   );
   const noProvide = Q.queryFactory(Q.id(33));
   const result = shortQueryToStatePots([provide, noProvide])(
@@ -206,7 +269,7 @@ test("will throw if waiting update isn't necessary", t => {
   );
   const provide = Q.queryFactory(
     Q.id(66),
-    Q.transforms([], [], [{ collectionName: 'titi', doc: { response: '42' } }])
+    Q.transforms([], [], [{ quantity: 1, collectionName: 'titi', doc: { response: '42' } }])
   );
   const e: ITransformSatisfaction[] = t.throws(() =>
     shortQueryToStatePots([provide, query])(
@@ -235,14 +298,14 @@ test("will throw if waiting update isn't necessary", t => {
 test('will ignore non waiting output', t => {
   const provide = Q.queryFactory(
     Q.id(66),
-    Q.transforms([], [], [{ collectionName: 'test', doc: { response: '42' } }])
+    Q.transforms([], [], [{ quantity: 1, collectionName: 'test', doc: { response: '42' } }])
   );
   const query = Q.queryFactory(
     Q.duration(Q.timeDuration(1)),
     Q.transforms(
       [Q.need(true, 'test', { response: '42' }, 1, 'ref')],
       [{ ref: 'ref', update: [{ property: 'response', value: '66' }] }],
-      [{ collectionName: 'test2', doc: { response: 33 } }]
+      [{ quantity: 1, collectionName: 'test2', doc: { response: 33 } }]
     )
   );
   const result = shortQueryToStatePots([provide, query])(
@@ -275,11 +338,11 @@ test('will find space from two providers (potentials) with space between provide
   );
   const provideTiti = Q.queryFactory(
     Q.id(42),
-    Q.transforms([], [], [{ collectionName: 'titi', doc: { response: 42 } }])
+    Q.transforms([], [], [{ quantity: 1, collectionName: 'titi', doc: { response: 42 } }])
   );
   const provideToto = Q.queryFactory(
     Q.id(66),
-    Q.transforms([], [], [{ collectionName: 'toto', doc: { response: 66 } }])
+    Q.transforms([], [], [{ quantity: 1, collectionName: 'toto', doc: { response: 66 } }])
   );
   const result = mediumQueryToStatePots([provideTiti, provideToto])(
     query,
@@ -319,11 +382,11 @@ test('will find space from two providers (potentials) without space between prov
   );
   const provideTiti = Q.queryFactory(
     Q.id(42),
-    Q.transforms([], [], [{ collectionName: 'titi', doc: { response: 42 } }])
+    Q.transforms([], [], [{ quantity: 1, collectionName: 'titi', doc: { response: 42 } }])
   );
   const provideToto = Q.queryFactory(
     Q.id(66),
-    Q.transforms([], [], [{ collectionName: 'toto', doc: { response: 66 } }])
+    Q.transforms([], [], [{ quantity: 1, collectionName: 'toto', doc: { response: 66 } }])
   );
   const result = mediumQueryToStatePots([provideTiti, provideToto, query])(
     query,
@@ -385,7 +448,7 @@ test("will try to works without provider's need satisfied", t => {
 });
 
 test("will try to works without all prover's need satisfied", t => {
-  const dbObj = [{ collectionName: 'test', data: [{ response: '33' }] }];
+  const dbObj = [{ quantity: 1, collectionName: 'test', data: [{ response: '33' }] }];
 
   const query = Q.queryFactory(
     Q.duration(Q.timeDuration(1)),
@@ -427,7 +490,11 @@ test('will find space from potentialities without simplifying result.', t => {
   const provider = Q.queryFactory(
     Q.id(2),
     Q.name('provider'),
-    Q.transforms([], [], [{ collectionName: 'test', wait: true, doc: { response: '33' } }])
+    Q.transforms(
+      [],
+      [],
+      [{ quantity: 1, collectionName: 'test', wait: true, doc: { response: '33' } }]
+    )
   );
   const result = largeQueryToStatePots([consumer, provider])(
     provider,
@@ -448,7 +515,7 @@ test('will find space from potentialities without simplifying result.', t => {
 });
 
 test('will find space thanks to update provider (potential)', t => {
-  const dbObj = [{ collectionName: 'titi', data: [{ response: ['66'] }] }];
+  const dbObj: IUserstateCollection[] = [{ collectionName: 'titi', data: [{ response: ['66'] }] }];
 
   const query = Q.queryFactory(
     Q.id(1),
@@ -492,7 +559,11 @@ test('will find space thanks to update provider (potential)', t => {
 
 test("will throw when provider's waiting insert isn't needed", t => {
   const query = Q.queryFactory(
-    Q.transforms([], [], [{ collectionName: 'titi', doc: { useless: true }, wait: true }])
+    Q.transforms(
+      [],
+      [],
+      [{ quantity: 1, collectionName: 'titi', doc: { useless: true }, wait: true }]
+    )
   );
   const e: ITransformSatisfaction[] = t.throws(() => shortQueryToStatePots([])(query, [], []));
   t.true(Array.isArray(e));
@@ -532,7 +603,7 @@ test('will not try to satisfy its own needs', t => {
       Q.transforms(
         [Q.need(false, 'col', {}, 1, '1')],
         [],
-        [{ collectionName: 'col', doc: { test: 'toto' }, wait: true }]
+        [{ quantity: 1, collectionName: 'col', doc: { test: 'toto' }, wait: true }]
       )
     ),
   ];
@@ -574,10 +645,7 @@ test('will throw when insert more than necessary', t => {
     Q.transforms(
       [],
       [],
-      [
-        { collectionName: 'test', doc: { response: '42' }, wait: true },
-        { collectionName: 'test', doc: { response: '42' }, wait: true },
-      ]
+      [{ quantity: 2, collectionName: 'test', doc: { response: '42' }, wait: true }]
     )
   );
   const e: ITransformSatisfaction[] = t.throws(() =>
@@ -640,7 +708,7 @@ test('will find space where resource is lacking that the waiting output satisfie
   const query5 = Q.queryFactory(
     Q.id(5),
     Q.duration(Q.timeDuration(1)),
-    Q.transforms([], [], [{ collectionName: 'toto', doc: { response: 0 } }])
+    Q.transforms([], [], [{ quantity: 1, collectionName: 'toto', doc: { response: 0 } }])
   );
 
   const insertTiti = Q.queryFactory(
@@ -648,7 +716,7 @@ test('will find space where resource is lacking that the waiting output satisfie
     Q.transforms(
       [Q.need(true, 'toto', { response: 0 }, 1, 'ref')],
       [{ ref: 'ref', update: [{ property: 'response', value: '33' }], wait: true }],
-      [{ collectionName: 'titi', doc: { response: '66' }, wait: true }]
+      [{ quantity: 1, collectionName: 'titi', doc: { response: '66' }, wait: true }]
     )
   );
   const result = largeQueryToStatePots([
