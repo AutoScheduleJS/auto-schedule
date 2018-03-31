@@ -22,7 +22,6 @@ const config = {
         NODE_ENV: JSON.stringify(nodeEnv),
       },
     }),
-    new webpack.optimize.ModuleConcatenationPlugin(),
   ],
   module: {
     rules: [
