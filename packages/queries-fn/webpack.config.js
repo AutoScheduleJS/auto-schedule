@@ -23,6 +23,9 @@ const config = {
       },
     }),
   ],
+  optimization: {
+    concatenateModules: true,
+  },
   module: {
     rules: [
       {

@@ -36,6 +36,7 @@
   },
   "homepage": "https://github.com/AutoScheduleJS/queries-fn#readme",
   "dependencies": {},
+  "sideEffects": false,
   "devDependencies": {
     "@semantic-release/release-notes-generator": "^6.0.9",
     "@types/ramda": "github:types/npm-ramda#dist",

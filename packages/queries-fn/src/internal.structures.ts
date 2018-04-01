@@ -1,17 +1,4 @@
-export enum QueryKind {
-  Placeholder,
-  Atomic,
-}
-
-export enum GoalKind {
-  Atomic,
-  Splittable,
-}
-
-export enum RestrictionCondition {
-  InRange,
-  OutRange,
-}
+import { QueryKind, RestrictionCondition } from './client.structures';
 
 export interface ITaskTransformNeed {
   readonly collectionName: string;
@@ -40,17 +27,11 @@ export interface ITaskTransformInsert {
   readonly wait?: boolean;
 }
 
-export interface ITransformation {
+export interface IQueryTransformation {
   readonly needs: ReadonlyArray<ITaskTransformNeed>;
   readonly updates: ReadonlyArray<ITaskTransformUpdate>;
   readonly inserts: ReadonlyArray<ITaskTransformInsert>;
   readonly deletes: ReadonlyArray<string>;
-}
-
-export interface IGoal {
-  readonly kind: GoalKind;
-  readonly quantity: ITimeDuration;
-  readonly time: number;
 }
 
 export interface ITimeDuration {
@@ -85,21 +66,20 @@ export interface IQueryLink {
   origin: 'start' | 'end';
 }
 
-export interface IBaseQuery {
+export interface IQueryPositionDuration {
+  readonly start?: ITimeBoundary;
+  readonly end?: ITimeBoundary;
+  readonly duration: ITimeDuration;
+}
+
+export type IQueryPosition = IQueryPositionDuration;
+
+export interface IQuery {
   readonly id: QueryID;
   readonly name: string;
   readonly kind: QueryKind;
-  readonly transforms?: ITransformation;
-  readonly links?: ReadonlyArray<IQueryLink>
-}
-
-export interface IGoalQuery extends IBaseQuery {
-  readonly goal: IGoal;
+  readonly position: IQueryPosition;
+  readonly transforms?: IQueryTransformation;
+  readonly links?: ReadonlyArray<IQueryLink>;
   readonly timeRestrictions?: ITimeRestrictions;
-}
-
-export interface IAtomicQuery extends IBaseQuery {
-  readonly start?: ITimeBoundary;
-  readonly end?: ITimeBoundary;
-  readonly duration?: ITimeDuration;
 }

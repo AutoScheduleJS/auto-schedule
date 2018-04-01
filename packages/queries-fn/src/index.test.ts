@@ -1,10 +1,11 @@
 import test from 'ava';
 import { has } from 'ramda';
 
-import { IAtomicQuery, IGoalQuery } from './data.structures';
+import * as client from './client.structures';
+
 import * as Q from './index';
 
-const hasBasic = (t: any, query: Q.IQuery): void => {
+const hasBasic = (t: any, query: client.IQuery): void => {
   t.true(has('id', query));
   t.true(has('name', query));
   t.true(has('kind', query));
@@ -22,9 +23,9 @@ test('will override name', t => {
 });
 
 test('will override kind', t => {
-  const query = Q.queryFactory(Q.kind(Q.QueryKind.Placeholder));
+  const query = Q.queryFactory(Q.kind(client.QueryKind.Placeholder));
   hasBasic(t, query);
-  t.true(query.kind === Q.QueryKind.Placeholder);
+  t.true(query.kind === client.QueryKind.Placeholder);
 });
 
 test('will override id', t => {
@@ -33,58 +34,21 @@ test('will override id', t => {
   t.true(query.id === 66);
 });
 
-test('will add start', t => {
-  const query1 = Q.queryFactory<IAtomicQuery>(Q.start(2));
-  const query2 = Q.queryFactory<IAtomicQuery>(Q.start(2, 1));
-  hasBasic(t, query1);
-  hasBasic(t, query2);
-  t.true(
-    query1.start && query1.start.min === 2 && query1.start.max === 2 && query1.start.target === 2
-  );
-  t.true(
-    query2.start && query2.start.min === 1 && query2.start.max === 2 && query2.start.target === 2
-  );
-});
-
-test('will add end', t => {
-  const query1 = Q.queryFactory<IAtomicQuery>(Q.end(2));
-  const query2 = Q.queryFactory<IAtomicQuery>(Q.end(2, 1));
-  hasBasic(t, query1);
-  hasBasic(t, query2);
-  t.true(query1.end && query1.end.min === 2 && query1.end.max === 2 && query1.end.target === 2);
-  t.true(query2.end && query2.end.min === 1 && query2.end.max === 2 && query2.end.target === 2);
-});
-
-test('will add duration', t => {
-  const query1 = Q.queryFactory<IAtomicQuery>(Q.duration(Q.timeDuration(2)));
-  const query2 = Q.queryFactory<IAtomicQuery>(Q.duration(Q.timeDuration(2, 1)));
-  hasBasic(t, query1);
-  hasBasic(t, query2);
-  t.true(query1.duration && query1.duration.min === 2 && query1.duration.target === 2);
-  t.true(query2.duration && query2.duration.min === 1 && query2.duration.target === 2);
-});
-
 test('will add timeRestriction and goal', t => {
-  const query = Q.queryFactory<IGoalQuery>(
-    Q.timeRestrictions('hour', Q.RestrictionCondition.InRange, [[0, 1]]),
-    Q.goal(Q.GoalKind.Atomic, Q.timeDuration(1), 10)
+  const query = Q.queryFactory(
+    Q.timeRestrictionsHelper('hour', client.RestrictionCondition.InRange, [[0, 1]])
   );
   hasBasic(t, query);
   const hourTr =
     query.timeRestrictions && query.timeRestrictions.hour ? query.timeRestrictions.hour : false;
   t.true(
-    hourTr && hourTr.condition === Q.RestrictionCondition.InRange && hourTr.ranges.length === 1
+    hourTr && hourTr.condition === client.RestrictionCondition.InRange && hourTr.ranges.length === 1
   );
   t.true(query.timeRestrictions && Object.keys(query.timeRestrictions).length === 1);
-  t.true(
-    query.goal.kind === Q.GoalKind.Atomic &&
-      query.goal.quantity.target === 1 &&
-      query.goal.time === 10
-  );
 });
 
 test('will add empty transforms', t => {
-  const query = Q.queryFactory(Q.transforms([], [], []));
+  const query = Q.queryFactory(Q.transformsHelper([], [], []));
   hasBasic(t, query);
   t.true(query.transforms != null);
   t.is(query.transforms && query.transforms.needs.length, 0);
@@ -93,7 +57,7 @@ test('will add empty transforms', t => {
 });
 
 test('will add needs transform', t => {
-  const query = Q.queryFactory(Q.transforms([Q.need()], [], []));
+  const query = Q.queryFactory(Q.transformsHelper([Q.need()], [], []));
   hasBasic(t, query);
   t.true(query.transforms != null);
   t.is(query.transforms && query.transforms.needs.length, 1);
@@ -104,7 +68,7 @@ test('will add needs transform', t => {
 });
 
 test('will add links', t => {
-  const query = Q.queryFactory(Q.links(Q.queryLink({ min: -5, max: 0 }, 'start', 1, 0)));
+  const query = Q.queryFactory(Q.links([Q.queryLink({ min: -5, max: 0 }, 'start', 1, 0)]));
   hasBasic(t, query);
   t.true(query.links != null);
   t.is(query.links && query.links.length, 1);
@@ -119,7 +83,7 @@ test('will add links', t => {
 
 test('will set correct delete transforms', t => {
   const query = Q.queryFactory(
-    Q.transforms(
+    Q.transformsHelper(
       [Q.need(true, 'a', {}, 1, 'aa'), Q.need(false, 'b', {}, 1, 'bb')],
       [{ ref: 'aa', update: [] }],
       []
@@ -131,50 +95,37 @@ test('will set correct delete transforms', t => {
   t.is(query.transforms && query.transforms.deletes[0], 'bb');
 });
 
-test('will typeguard goal query', t => {
-  const query = Q.queryFactory(Q.goal(Q.GoalKind.Atomic, Q.timeDuration(1), 1));
-  t.false(Q.isAtomicQuery(query));
-  t.true(Q.isGoalQuery(query));
-});
-
-test('will typeguard atomic query without transforms', t => {
-  const query = Q.queryFactory(Q.start(1), Q.end(2));
-  t.true(Q.isAtomicQuery(query));
-  t.false(Q.isGoalQuery(query));
-});
-
-test('will typeguard atomic query with transforms', t => {
-  const query = Q.queryFactory(Q.start(1), Q.end(2), Q.transforms([], [], []));
-  t.true(Q.isAtomicQuery(query));
-  t.false(Q.isGoalQuery(query));
-});
-
 test('will sanitize query', t => {
-  const query: IAtomicQuery = Q.sanitize({
-    end: undefined,
+  const query = Q.sanitize({
     id: 1,
     kind: 1,
     name: 'query',
-    start: { target: 0 },
+    position: { end: undefined, start: { target: 0 }, duration: { target: 2 } },
     transforms: {
       needs: [{ collectionName: 'test', find: {}, quantity: 1, ref: 'ref', wait: false }],
     },
   });
-  const query2: IAtomicQuery = Q.sanitize({
+  const query2 = Q.sanitize({
     id: 1,
     kind: 1,
+    links: undefined,
     name: 'query',
+    position: { start: { target: 0 }, end: { target: 2 } },
   });
-  const query3: IAtomicQuery = Q.sanitize({
+  const query3 = Q.sanitize({
     id: 1,
     kind: 1,
+    links: [],
     name: 'query',
+    position: { start: { target: 0 }, end: { target: 2 } },
+    timeRestrictions: { month: { condition: client.RestrictionCondition.InRange, ranges: [] } },
     transforms: { updates: [], inserts: [] },
   });
-  const query4: IAtomicQuery = Q.sanitize({
+  const query4 = Q.sanitize({
     id: 1,
     kind: 1,
     name: 'query',
+    position: { start: { target: 0 }, end: { target: 2 } },
     transforms: {
       inserts: [{}, { collectionName: 'test', doc: {} }],
       needs: [{}],
@@ -184,6 +135,11 @@ test('will sanitize query', t => {
   t.true(query.transforms && query.transforms.deletes.length > 0);
   t.true(query3.transforms && query3.transforms.deletes.length === 0);
   t.true(
+    query3.timeRestrictions &&
+      query3.timeRestrictions.month &&
+      query3.timeRestrictions.month.condition === client.RestrictionCondition.InRange
+  );
+  t.true(
     query4.transforms &&
       query4.transforms.deletes.length === 0 &&
       query4.transforms.inserts.length === 1 &&
@@ -191,4 +147,17 @@ test('will sanitize query', t => {
   );
   t.false(Object.getOwnPropertyNames(query).some(p => p === 'end'));
   t.false(Object.getOwnPropertyNames(query2).some(p => p === 'transform'));
+});
+
+test('Will throw when invalid position', t => {
+  t.throws(
+    () =>
+      Q.sanitize({
+        id: 1,
+        kind: 1,
+        name: 'query',
+        position: { start: { target: 0 }, end: undefined },
+      }),
+    'Invalid position'
+  );
 });
