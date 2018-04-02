@@ -3,4 +3,5 @@ dist
 coverage
 .nyc_output
 build
+es
 docs

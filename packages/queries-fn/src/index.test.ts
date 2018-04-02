@@ -1,14 +1,12 @@
 import test from 'ava';
-import { has } from 'ramda';
 
 import * as client from './client.structures';
-
 import * as Q from './index';
 
 const hasBasic = (t: any, query: client.IQuery): void => {
-  t.true(has('id', query));
-  t.true(has('name', query));
-  t.true(has('kind', query));
+  t.true(query.id != null);
+  t.true(query.name != null);
+  t.true(query.kind != null);
 };
 
 test('will create default query', t => {
