@@ -6,15 +6,9 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "ava": "ava **/*.test.js",
-    "test": "tslint -p ./ && tsc && nyc --reporter=lcov npm run ava",
+    "test": ":",
     "test:codecov": "tslint -p ./ && tsc && nyc npm run ava",
-    "build": "webpack",
-    "doc": "npm run build && typedoc --out docs/ dist/",
-    "prepublish": "npm run build",
-    "semantic-release": "semantic-release",
-    "watch:ts": "tsc -w",
-    "watch:ava": "ava -w build/**/*.test.js",
-    "watch:test": "concurrently -k -p \"[{name}]\" -n \"TypeScript,Ava\" -c \"blue.bold,magenta.bold\" \"npm run watch:ts\" \"npm run watch:ava\""
+    "doc": "npm run build && typedoc --out docs/ dist/"
   },
   "repository": {
     "type": "git",
@@ -37,10 +31,10 @@
   "homepage": "https://github.com/AutoScheduleJS/conflict-resolver#readme",
   "dependencies": {},
   "devDependencies": {
-    "ava": "^0.24.0",
+    "ava": "^0.25.0",
     "cz-conventional-changelog": "^2.1.0",
-    "nyc": "^11.3.0",
-    "typescript": "^2.6.1"
+    "nyc": "^11.6.0",
+    "typescript": "^2.8.1"
   },
   "config": {
     "commitizen": {
