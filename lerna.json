@@ -1,0 +1,12 @@
+{
+  "lerna": "2.9.1",
+  "packages": ["packages/*"],
+  "version": "6.1.0",
+  "npmClientArgs": ["--hoist", "--production", "--no-optional"],
+  "command": {
+    "publish": {
+      "message": "chore(release): publish %s"
+    }
+  },
+  "conventionalCommits": true
+}

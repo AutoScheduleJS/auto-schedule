@@ -1,6 +1,6 @@
 {
   "name": "@autoschedule/queries-fn",
-  "version": "0.0.0-development",
+  "version": "6.1.0",
   "description": "Queries fn",
   "main": "dist/index.bundle.js",
   "module": "es/index.js",
@@ -9,14 +9,7 @@
     "ava": "ava build/**/*.test.js",
     "test": "tslint -p ./ && tsc && nyc --reporter=lcov npm run ava",
     "test:codecov": "tslint -p ./ && tsc && nyc npm run ava",
-    "build": "tsc -m es6 --outDir es && webpack --mode production",
-    "doc": "npm run build && typedoc --out docs/ dist/",
-    "prepublish": "npm run build",
-    "travis-deploy-once": "travis-deploy-once",
-    "semantic-release": "semantic-release",
-    "watch:ts": "tsc -w",
-    "watch:ava": "ava -w build/**/*.test.js",
-    "watch:test": "concurrently -k -p \"[{name}]\" -n \"TypeScript,Ava\" -c \"blue.bold,magenta.bold\" \"npm run watch:ts\" \"npm run watch:ava\""
+    "prepare": "tsc -p tsconfig.build.json -m es6 --outDir es"
   },
   "repository": {
     "type": "git",
@@ -39,35 +32,14 @@
   "dependencies": {},
   "sideEffects": false,
   "devDependencies": {
-    "@semantic-release/release-notes-generator": "^6.0.9",
     "ava": "^0.25.0",
-    "babel-core": "^6.26.0",
-    "babel-loader": "^7.1.4",
-    "babel-preset-env": "^1.6.1",
     "concurrently": "^3.5.1",
-    "cz-conventional-changelog": "^2.1.0",
     "nyc": "^11.6.0",
-    "prettier": "^1.11.1",
-    "semantic-release": "^15.1.4",
-    "travis-deploy-once": "^4.4.1",
-    "ts-loader": "^4.1.0",
-    "tslint": "^5.9.1",
-    "tslint-config-prettier": "^1.6.0",
-    "typedoc": "^0.11.1",
-    "typescript": "^2.8.1",
-    "uglifyjs-webpack-plugin": "^1.2.4",
-    "webpack": "^4.4.1",
-    "webpack-cli": "^2.0.13"
+    "typescript": "^2.8.1"
   },
   "config": {
     "commitizen": {
       "path": "./node_modules/cz-conventional-changelog"
     }
-  },
-  "release": {
-    "publish": [
-      "@semantic-release/npm",
-      "@semantic-release/github"
-    ]
   }
 }
