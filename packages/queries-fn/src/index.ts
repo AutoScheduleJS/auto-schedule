@@ -1,6 +1,8 @@
-// import { assoc, assocPath, mergeAll } from 'ramda';
 import * as client from './client.structures';
 import * as internal from './internal.structures';
+
+export * from './client.structures';
+export * from './internal.structures';
 
 /**
  * Construct query's `name` property.
@@ -48,7 +50,7 @@ const isEndTimeTargetTimeBoundary = (
 
 export const position = (
   posi: client.IQueryPosition
-): Record<'position', internal.IQueryPosition> => {
+): Record<'position', internal.IQueryPositionInternal> => {
   const pos: client.IQueryPosition = deleteOptionalProperties(posi as any, [
     'start',
     'end',
@@ -72,7 +74,7 @@ export const position = (
   } else if (isStartEndPosition(pos)) {
     const endMin = isEndTimeTargetTimeBoundary(pos.end) ? pos.end.target : pos.end.min;
     const startMax = isStartTimeTargetTimeBoundary(pos.start) ? pos.start.target : pos.start.max;
-    const dur: internal.ITimeDuration = {
+    const dur: internal.ITimeDurationInternal = {
       min: (pos.end.min || endMin) - (pos.start.max || startMax),
       target: endMin - startMax,
     };
@@ -87,7 +89,7 @@ export const queryLink = (
   queryId: client.QueryID,
   potentialId: number,
   splitId?: number
-): internal.IQueryLink => ({
+): internal.IQueryLinkInternal => ({
   distance,
   origin,
   potentialId,
@@ -96,8 +98,8 @@ export const queryLink = (
 });
 
 export const links = (
-  queryLinks: internal.IQueryLink[]
-): Record<'links', ReadonlyArray<internal.IQueryLink>> | {} => {
+  queryLinks: internal.IQueryLinkInternal[]
+): Record<'links', ReadonlyArray<internal.IQueryLinkInternal>> | {} => {
   if (!queryLinks || !queryLinks.length) {
     return {};
   }
@@ -128,13 +130,13 @@ export const timeRestrictionsHelper = (
 ) =>
   ({ timeRestrictions: { [type]: timeRestriction(condition, ranges) } } as Record<
     'timeRestrictions',
-    internal.ITimeRestrictions
+    client.ITimeRestrictions
   >);
 /* tslint:enable */
 
 export const timeRestrictions = (
   restric: client.ITimeRestrictions
-): Record<'timeRestrictions', internal.ITimeRestrictions> | {} => {
+): Record<'timeRestrictions', client.ITimeRestrictions> | {} => {
   if (restric == null || (!restric.hour && !restric.month && !restric.weekday)) {
     return {};
   }
@@ -152,7 +154,7 @@ export const need = (
   find: any = {},
   quantity: number = 1,
   ref: string = '1'
-): internal.ITaskTransformNeed => {
+): client.ITaskTransformNeed => {
   return {
     collectionName,
     find,
@@ -166,10 +168,10 @@ export const need = (
  * Construct query's `transforms` property
  */
 export const transformsHelper = (
-  needs: ReadonlyArray<internal.ITaskTransformNeed>,
-  updates: ReadonlyArray<internal.ITaskTransformUpdate>,
-  inserts: ReadonlyArray<internal.ITaskTransformInsert>
-): Record<'transforms', internal.IQueryTransformation> => ({
+  needs: ReadonlyArray<client.ITaskTransformNeed>,
+  updates: ReadonlyArray<client.ITaskTransformUpdate>,
+  inserts: ReadonlyArray<client.ITaskTransformInsert>
+): Record<'transforms', internal.IQueryTransformationInternal> => ({
   transforms: {
     deletes: needs.filter(n => updates.every(update => update.ref !== n.ref)).map(n => n.ref),
     inserts,
@@ -180,7 +182,7 @@ export const transformsHelper = (
 
 export const transforms = (
   transfos: client.IQueryTransformation
-): Record<'transforms', internal.IQueryTransformation> | {} => {
+): Record<'transforms', internal.IQueryTransformationInternal> | {} => {
   if (!transfos || (!transfos.inserts && !transfos.needs && !transfos.updates)) {
     return {};
   }
@@ -197,14 +199,14 @@ export const transforms = (
  * @param factories Partial query objects resulting from factories functions
  * @returns Query object built from merging all partials
  */
-export const queryFactory = (...factories: Array<Partial<internal.IQuery>>): internal.IQuery => {
+export const queryFactory = (...factories: Array<Partial<internal.IQueryInternal>>): internal.IQueryInternal => {
   return {
     ...id(),
     ...name(),
     ...kind(),
     ...position({ duration: { target: 2 } }),
     ...factories.reduce((a, b) => ({ ...a, ...b }), {}),
-  } as internal.IQuery;
+  } as internal.IQueryInternal;
 };
 /* tslint:enable */
 /* tslint:disable:prefer-object-spread */
@@ -219,7 +221,7 @@ const deleteOptionalProperties = <T extends {}>(obj: T, optionalProps: Array<key
   return result;
 };
 /* tslint:enable */
-export const sanitize = (query: any): internal.IQuery => {
+export const sanitize = (query: any): internal.IQueryInternal => {
   return queryFactory(
     id(query.id),
     name(query.name),
@@ -231,7 +233,7 @@ export const sanitize = (query: any): internal.IQuery => {
   );
 };
 
-export const isTaskTransformNeed = (userNeed: any): userNeed is internal.ITaskTransformNeed => {
+export const isTaskTransformNeed = (userNeed: any): userNeed is client.ITaskTransformNeed => {
   return (
     userNeed != null &&
     userNeed.collectionName != null &&
@@ -243,12 +245,12 @@ export const isTaskTransformNeed = (userNeed: any): userNeed is internal.ITaskTr
 
 export const isTaskTransformInsert = (
   userInsert: any
-): userInsert is internal.ITaskTransformInsert => {
+): userInsert is client.ITaskTransformInsert => {
   return userInsert != null && userInsert.collectionName != null && userInsert.doc != null;
 };
 
 export const isTaskTransformUpdate = (
   userUpdate: any
-): userUpdate is internal.ITaskTransformUpdate => {
+): userUpdate is client.ITaskTransformUpdate => {
   return userUpdate != null && userUpdate.ref != null && userUpdate.update != null;
 };

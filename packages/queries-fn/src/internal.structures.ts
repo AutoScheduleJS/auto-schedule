@@ -1,85 +1,48 @@
-import { QueryKind, RestrictionCondition } from './client.structures';
+import {
+  ITaskTransformInsert,
+  ITaskTransformNeed,
+  ITaskTransformUpdate,
+  ITimeBoundary,
+  ITimeRestrictions,
+  QueryKind,
+} from './client.structures';
 
-export interface ITaskTransformNeed {
-  readonly collectionName: string;
-  readonly ref: string; // Unique ID
-  readonly find: any;
-  readonly quantity: number;
-  readonly wait?: boolean;
-}
-
-export interface IUpdateObject {
-  readonly property: string;
-  readonly value: string;
-  readonly arrayMethod?: 'Push' | 'Delete';
-}
-
-export interface ITaskTransformUpdate {
-  readonly ref: string;
-  readonly update: ReadonlyArray<IUpdateObject>;
-  readonly wait?: boolean;
-}
-
-export interface ITaskTransformInsert {
-  readonly collectionName: string;
-  readonly doc: any;
-  readonly quantity: number;
-  readonly wait?: boolean;
-}
-
-export interface IQueryTransformation {
+export interface IQueryTransformationInternal {
   readonly needs: ReadonlyArray<ITaskTransformNeed>;
   readonly updates: ReadonlyArray<ITaskTransformUpdate>;
   readonly inserts: ReadonlyArray<ITaskTransformInsert>;
   readonly deletes: ReadonlyArray<string>;
 }
 
-export interface ITimeDuration {
+export interface ITimeDurationInternal {
   readonly min: number;
   readonly target: number;
 }
 
-export interface ITimeBoundary {
-  readonly min?: number;
-  readonly target?: number;
-  readonly max?: number;
-}
+export type QueryIDInternal = number;
 
-export interface ITimeRestriction {
-  readonly condition: RestrictionCondition;
-  readonly ranges: ReadonlyArray<[number, number]>;
-}
-
-export interface ITimeRestrictions {
-  readonly hour?: ITimeRestriction;
-  readonly weekday?: ITimeRestriction;
-  readonly month?: ITimeRestriction;
-}
-
-export type QueryID = number;
-
-export interface IQueryLink {
-  queryId: QueryID;
+export interface IQueryLinkInternal {
+  queryId: QueryIDInternal;
   potentialId: number;
   splitId?: number;
   distance: ITimeBoundary;
   origin: 'start' | 'end';
 }
 
-export interface IQueryPositionDuration {
+export interface IQueryPositionDurationInternal {
   readonly start?: ITimeBoundary;
   readonly end?: ITimeBoundary;
-  readonly duration: ITimeDuration;
+  readonly duration: ITimeDurationInternal;
 }
 
-export type IQueryPosition = IQueryPositionDuration;
+export type IQueryPositionInternal = IQueryPositionDurationInternal;
 
-export interface IQuery {
-  readonly id: QueryID;
+export interface IQueryInternal {
+  readonly id: QueryIDInternal;
   readonly name: string;
   readonly kind: QueryKind;
-  readonly position: IQueryPosition;
-  readonly transforms?: IQueryTransformation;
-  readonly links?: ReadonlyArray<IQueryLink>;
+  readonly position: IQueryPositionInternal;
+  readonly transforms?: IQueryTransformationInternal;
+  readonly links?: ReadonlyArray<IQueryLinkInternal>;
   readonly timeRestrictions?: ITimeRestrictions;
 }
