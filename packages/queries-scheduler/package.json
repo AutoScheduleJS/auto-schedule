@@ -7,9 +7,9 @@
   "types": "es/index.d.ts",
   "scripts": {
     "ava": "ava build/**/*.test.js",
-    "test": "tslint -p ./ && tsc && nyc --reporter=lcov npm run ava",
-    "test:codecov": "tslint -p ./ && tsc && nyc npm run ava",
-    "prepare": "tsc -p tsconfig.build.json -m es6 --outDir es"
+    "test": "tslint -p ./ && npm run build:test && nyc --reporter=lcov npm run ava",
+    "test:codecov": "tslint -p ./ && npm run build:test && nyc npm run ava",
+    "prepare": "npm run build:test -- -m es6 --outDir es"
   },
   "repository": {
     "type": "git",
@@ -29,13 +29,15 @@
     "url": "https://github.com/AutoScheduleJS/queries-scheduler/issues"
   },
   "homepage": "https://github.com/AutoScheduleJS/queries-scheduler#readme",
-  "dependencies": {},
+  "dependencies": {
+  },
   "devDependencies": {
     "@autoschedule/queries-fn": "^6.1.0",
     "@autoschedule/userstate-manager": "^3.0.2",
     "@types/ramda": "github:types/npm-ramda#dist",
     "ava": "^0.25.0",
     "concurrently": "^3.5.1",
+    "esm": "^3.0.17",
     "intervals-fn": "^2.6.0",
     "moment": "^2.22.0",
     "nyc": "^11.6.0",
@@ -47,5 +49,10 @@
     "commitizen": {
       "path": "./node_modules/cz-conventional-changelog"
     }
-  }
+  },
+  "ava": {
+		"require": [
+			"esm"
+		]
+	}
 }

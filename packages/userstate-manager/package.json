@@ -7,9 +7,9 @@
   "types": "es/index.d.ts",
   "scripts": {
     "ava": "ava build/**/*.test.js",
-    "test": "tslint -p ./ && tsc && nyc --reporter=lcov npm run ava",
-    "test:codecov": "tslint -p ./ && tsc && nyc npm run ava",
-    "prepare": "tsc -p tsconfig.build.json -m es6 --outDir es"
+    "test": "tslint -p ./ && npm run build:test && nyc --reporter=lcov npm run ava",
+    "test:codecov": "tslint -p ./ && npm run build:test && nyc npm run ava",
+    "prepare": "npm run build:test -- -m es6 --outDir es"
   },
   "repository": {
     "type": "git",
@@ -29,12 +29,14 @@
     "url": "https://github.com/AutoScheduleJS/userstate-manager/issues"
   },
   "homepage": "https://github.com/AutoScheduleJS/userstate-manager#readme",
-  "dependencies": {},
+  "dependencies": {
+  },
   "devDependencies": {
     "@autoschedule/queries-fn": "^6.1.0",
     "@types/lokijs": "^1.5.2",
     "@types/ramda": "github:types/npm-ramda#dist",
     "ava": "^0.25.0",
+    "esm": "^3.0.17",
     "intervals-fn": "^2.6.0",
     "lokijs": "^1.5.3",
     "moment": "^2.22.0",
@@ -48,10 +50,9 @@
       "path": "./node_modules/cz-conventional-changelog"
     }
   },
-  "release": {
-    "publish": [
-      "@semantic-release/npm",
-      "@semantic-release/github"
-    ]
-  }
+  "ava": {
+		"require": [
+			"esm"
+		]
+	}
 }

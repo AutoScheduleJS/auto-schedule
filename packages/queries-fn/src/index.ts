@@ -219,7 +219,7 @@ export const transformsHelper = (
   transforms: {
     deletes: needs.filter(n => updates.every(update => update.ref !== n.ref)).map(n => n.ref),
     inserts: inserts.map(defaultQuantityToOne),
-    needs: inserts.map(defaultQuantityToOne),
+    needs: needs.map(defaultQuantityToOne),
     updates,
   },
 });
