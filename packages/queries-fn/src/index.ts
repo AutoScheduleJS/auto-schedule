@@ -237,6 +237,12 @@ export const transforms = (
   );
 };
 
+export const splittable = (split?: boolean): Record<'splittable', boolean> => {
+  return {
+    splittable: split == null ? true : split
+  }
+}
+
 /* tslint:disable:no-object-literal-type-assertion */
 /**
  * Merge all partials queries to form one query. Provide default `id`, `name` and `kind` (`IBaseQuery` properties)

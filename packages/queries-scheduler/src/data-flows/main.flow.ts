@@ -1,15 +1,17 @@
-import { IQuery } from '@autoschedule/queries-fn';
+import { IQueryInternal } from '@autoschedule/queries-fn';
 import { unnest } from 'ramda';
 import { BehaviorSubject } from 'rxjs/BehaviorSubject';
 import { Observable } from 'rxjs/Observable';
 import { catchError, filter, switchMap } from 'rxjs/operators';
 
-import 'rxjs/add/operator/catch';
+// import 'rxjs/add/operator/catch';
 
 import { IConfig } from '../data-structures/config.interface';
 import { IMaterial } from '../data-structures/material.interface';
 
 import { queriesToPipeline$, stateManagerType } from './scheduler.flow';
+
+type IQuery = IQueryInternal;
 
 type askDetailsType = (
   s: ReadonlyArray<IMaterial>

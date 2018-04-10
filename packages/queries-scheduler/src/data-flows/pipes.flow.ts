@@ -1,4 +1,4 @@
-import { ITimeDuration } from '@autoschedule/queries-fn';
+import { ITimeDurationInternal } from '@autoschedule/queries-fn';
 import { intersect, isDuring, isOverlapping, substract } from 'intervals-fn';
 import * as R from 'ramda';
 import { BehaviorSubject } from 'rxjs/BehaviorSubject';
@@ -329,7 +329,7 @@ const potentialsToMeanPressure = R.pipe(
   R.mean
 );
 
-const potToSimul = (durationType: keyof ITimeDuration, pot: IPotentiality): IPotentialitySimul => ({
+const potToSimul = (durationType: keyof ITimeDurationInternal, pot: IPotentiality): IPotentialitySimul => ({
   duration: pot.duration[durationType],
   isSplittable: pot.isSplittable,
   places: pot.places,

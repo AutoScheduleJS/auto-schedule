@@ -79,6 +79,20 @@ test('will add links', t => {
   t.is(query.links && query.links[0].splitId, undefined);
 });
 
+test('will specify splittable', t => {
+  const query = Q.queryFactory(Q.splittable());
+  hasBasic(t, query);
+  t.true(query.splittable);
+
+  const query2 = Q.queryFactory(Q.splittable(true));
+  hasBasic(t, query2);
+  t.true(query2.splittable);
+
+  const query3 = Q.queryFactory(Q.splittable(false));
+  hasBasic(t, query3);
+  t.false(query3.splittable);
+});
+
 test('will set correct delete transforms', t => {
   const query = Q.queryFactory(
     Q.transformsHelper(

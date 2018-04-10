@@ -103,7 +103,7 @@ test('will map from month timeRestrictions when overlapping range', t => {
 
 test('will convert atomic to potentiality (start, duration)', t => {
   const config: IConfig = { startDate: 0, endDate: 10 };
-  const atomic: Q.IQuery = Q.queryFactory(Q.positionHelper(Q.start(5), Q.duration(1)));
+  const atomic: Q.IQueryInternal = Q.queryFactory(Q.positionHelper(Q.start(5), Q.duration(1)));
   const pot = atomicToPotentiality(config)(atomic);
 
   t.is(pot.length, 1);
@@ -116,7 +116,7 @@ test('will convert atomic to potentiality (start, duration)', t => {
 
 test('will convert atomic to potentiality (start, end)', t => {
   const config: IConfig = { startDate: 0, endDate: 10 };
-  const atomic: Q.IQuery = Q.queryFactory(Q.positionHelper(Q.start(5), Q.end(6)));
+  const atomic: Q.IQueryInternal = Q.queryFactory(Q.positionHelper(Q.start(5), Q.end(6)));
   const pot = atomicToPotentiality(config)(atomic);
 
   t.is(pot.length, 1);

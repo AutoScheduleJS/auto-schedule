@@ -115,4 +115,5 @@ export interface IQuery {
   readonly transforms?: IQueryTransformation;
   readonly links?: ReadonlyArray<IQueryLink>;
   readonly timeRestrictions?: ITimeRestrictions;
+  readonly splittable?: boolean;
 }

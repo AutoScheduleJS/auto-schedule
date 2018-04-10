@@ -10,7 +10,7 @@ import { IConfig } from '../data-structures/config.interface';
 import { IMaterial } from '../data-structures/material.interface';
 import { getSchedule$ } from './main.flow';
 
-type queriesObj = Array<{ readonly id: number; readonly queries: ReadonlyArray<Q.IQuery> }>;
+type queriesObj = Array<{ readonly id: number; readonly queries: ReadonlyArray<Q.IQueryInternal> }>;
 
 const stateManager = queryToStatePotentials([]);
 
@@ -19,10 +19,10 @@ const askDetails = (fn: (s: ReadonlyArray<IMaterial>) => queriesObj) => (
 ): queriesObj => {
   return fn(s);
 };
-const conflictResolver = (fn: (q: ReadonlyArray<Q.IQuery>, e: any) => ReadonlyArray<Q.IQuery>) => (
-  queries: ReadonlyArray<Q.IQuery>,
+const conflictResolver = (fn: (q: ReadonlyArray<Q.IQueryInternal>, e: any) => ReadonlyArray<Q.IQueryInternal>) => (
+  queries: ReadonlyArray<Q.IQueryInternal>,
   error: any
-): Observable<ReadonlyArray<Q.IQuery>> => {
+): Observable<ReadonlyArray<Q.IQueryInternal>> => {
   return Observable.of(fn(queries, error));
 };
 const toEmpty = () => [];
@@ -43,7 +43,7 @@ test('will compute zero queries', t => {
 
 test('will compute one query', t => {
   const durTarget = +dur(1.5, 'hours');
-  const queries: Q.IQuery[] = [
+  const queries: Q.IQueryInternal[] = [
     Q.queryFactory(Q.positionHelper(Q.duration(durTarget, +dur(1, 'hours')))),
   ];
   let i = 0;
@@ -80,7 +80,7 @@ test('will compute one query', t => {
 });
 
 test('will catch errors', t => {
-  const queries: Q.IQuery[] = [
+  const queries: Q.IQueryInternal[] = [
     Q.queryFactory(Q.id(1), Q.positionHelper(Q.start(config.startDate), Q.end(config.endDate - 1))),
     Q.queryFactory(Q.id(2), Q.positionHelper(Q.start(config.startDate), Q.end(config.endDate - 1))),
   ];
@@ -116,7 +116,7 @@ test('will catch errors', t => {
 
 test('will change query', t => {
   const durTarget = +dur(1.5, 'hours');
-  const queries: Q.IQuery[] = [
+  const queries: Q.IQueryInternal[] = [
     Q.queryFactory(Q.id(1), Q.positionHelper(Q.duration(durTarget, +dur(1, 'hours')))),
   ];
   let iteration = 0;
