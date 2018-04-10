@@ -112,7 +112,7 @@ const continueProgress = (progress: number[]): boolean => {
   return (
     (progress.length === 1 ||
       !R.reduceWhile(
-        ({ similar, value }, cur) => similar,
+        ({ similar }, _) => similar,
         ({ similar, value }, cur) => ({ similar: similar && Object.is(value, cur), value: cur }),
         { similar: true, value: progress[0] },
         progress
@@ -226,7 +226,7 @@ const divideChunkByDuration = (duration: number) => (chunk: IPressureChunk): IRa
   ];
 };
 
-const rangeChunkIntersectin = (duration: number, chunks: IPressureChunk[]) => (range: IRange) => {
+const rangeChunkIntersectin = (chunks: IPressureChunk[]) => (range: IRange) => {
   const inter = intersect(range, chunks);
   if (!inter.length) {
     return null;
@@ -243,7 +243,7 @@ const computeContiguousPressureChunk = (
   }
   return R.unnest(chunks.map(divideChunkByDuration(duration)))
     .filter(c => c.start >= firstTimeRange(chunks) && c.end <= lastTimeRange(chunks))
-    .map(rangeChunkIntersectin(duration, chunks))
+    .map(rangeChunkIntersectin(chunks))
     .filter(p => p != null && p.end - p.start >= duration) as IPressureChunk[];
 };
 
@@ -273,7 +273,7 @@ const minimizeChunkToDuration = (chunk: IPressureChunk, duration: number): IPres
 
 const placeAtomic = (toPlace: IPotentialitySimul, pressure: IPressureChunk[]): IMaterial[] => {
   if (toPlace.places.length === 1 && rangeToDuration(toPlace.places[0]) === toPlace.duration) {
-    const result = rangeChunkIntersectin(toPlace.duration, pressure)(toPlace.places[0]);
+    const result = rangeChunkIntersectin(pressure)(toPlace.places[0]);
     if (result) {
       return [rangeToMaterial(toPlace, result)];
     }

@@ -1,4 +1,4 @@
-import { IQuery, ITransformation } from '@autoschedule/queries-fn';
+import { IQueryInternal, IQueryTransformationInternal } from '@autoschedule/queries-fn';
 import { intersect, simplify } from 'intervals-fn';
 import * as loki from 'lokijs';
 import { groupWith, prop, sortBy, unnest } from 'ramda';
@@ -14,6 +14,8 @@ import { allTransfo, ITransformationTime } from '../data-structures/transformati
 import { IUserstateCollection } from '../data-structures/userstate-collection.interface';
 
 import { computeOutputSatisfaction, computeRangeSatisfaction } from './satisfactions.flow';
+
+type IQuery = IQueryInternal;
 
 const objectDBToDB = (objectDB: ReadonlyArray<IUserstateCollection>): Loki => {
   const db = new loki('simul');
@@ -228,7 +230,7 @@ const transfoToQueryTransfo = (id: IIdentifier) => <T extends allTransfo>(
  */
 const placeToTransfoTime = (
   id: IIdentifier,
-  transfo: ITransformation,
+  transfo: IQueryTransformationInternal,
   start: number,
   end: number
 ): ITransformationTime[] => {

@@ -44,7 +44,7 @@ test('will compute zero queries', t => {
 test('will compute one query', t => {
   const durTarget = +dur(1.5, 'hours');
   const queries: Q.IQuery[] = [
-    Q.queryFactory(Q.duration(Q.timeDuration(durTarget, +dur(1, 'hours')))),
+    Q.queryFactory(Q.positionHelper(Q.duration(durTarget, +dur(1, 'hours')))),
   ];
   let i = 0;
   return getSchedule$(
@@ -81,8 +81,8 @@ test('will compute one query', t => {
 
 test('will catch errors', t => {
   const queries: Q.IQuery[] = [
-    Q.queryFactory(Q.id(1), Q.start(config.startDate), Q.end(config.endDate - 1)),
-    Q.queryFactory(Q.id(2), Q.start(config.startDate), Q.end(config.endDate - 1)),
+    Q.queryFactory(Q.id(1), Q.positionHelper(Q.start(config.startDate), Q.end(config.endDate - 1))),
+    Q.queryFactory(Q.id(2), Q.positionHelper(Q.start(config.startDate), Q.end(config.endDate - 1))),
   ];
   return getSchedule$(
     askDetails(s => {
@@ -91,10 +91,16 @@ test('will catch errors', t => {
       testStartEnd(t, config.startDate + 1001, config.endDate - 1, s[1]);
       return [];
     }),
-    conflictResolver((q, e) => {
+    conflictResolver(() => {
       return [
-        Q.queryFactory(Q.id(1), Q.start(config.startDate), Q.end(config.startDate + 1000)),
-        Q.queryFactory(Q.id(2), Q.start(config.startDate + 1001), Q.end(config.endDate - 1)),
+        Q.queryFactory(
+          Q.id(1),
+          Q.positionHelper(Q.start(config.startDate), Q.end(config.startDate + 1000))
+        ),
+        Q.queryFactory(
+          Q.id(2),
+          Q.positionHelper(Q.start(config.startDate + 1001), Q.end(config.endDate - 1))
+        ),
       ];
     }),
     config
@@ -111,7 +117,7 @@ test('will catch errors', t => {
 test('will change query', t => {
   const durTarget = +dur(1.5, 'hours');
   const queries: Q.IQuery[] = [
-    Q.queryFactory(Q.id(1), Q.duration(Q.timeDuration(durTarget, +dur(1, 'hours')))),
+    Q.queryFactory(Q.id(1), Q.positionHelper(Q.duration(durTarget, +dur(1, 'hours')))),
   ];
   let iteration = 0;
   return getSchedule$(
@@ -126,7 +132,10 @@ test('will change query', t => {
         {
           id: 1,
           queries: [
-            Q.queryFactory(Q.id(2), Q.start(config.startDate + 1000), Q.end(config.endDate - 1000)),
+            Q.queryFactory(
+              Q.id(2),
+              Q.positionHelper(Q.start(config.startDate + 1000), Q.end(config.endDate - 1000))
+            ),
           ],
         },
         {

@@ -2,9 +2,9 @@
   "name": "@autoschedule/queries-fn",
   "version": "6.1.0",
   "description": "Queries fn",
-  "main": "dist/index.bundle.js",
+  "main": "es/index.js",
   "module": "es/index.js",
-  "types": "dist/index.d.ts",
+  "types": "es/index.d.ts",
   "scripts": {
     "ava": "ava build/**/*.test.js",
     "test": "tslint -p ./ && tsc && nyc --reporter=lcov npm run ava",

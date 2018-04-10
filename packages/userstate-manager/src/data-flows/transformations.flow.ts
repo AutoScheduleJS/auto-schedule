@@ -1,6 +1,6 @@
 import {
-  ITaskTransformInsert,
-  ITaskTransformNeed,
+  ITaskTransformInsertInternal,
+  ITaskTransformNeedInternal,
   ITaskTransformUpdate,
   IUpdateObject,
 } from '@autoschedule/queries-fn';
@@ -42,7 +42,7 @@ export const handleOutputTransformations = (
 
 const handleInserts = (
   db: Loki,
-  inserts: ReadonlyArray<IQueryTransfo<ITaskTransformInsert>>
+  inserts: ReadonlyArray<IQueryTransfo<ITaskTransformInsertInternal>>
 ): void => {
   inserts.forEach(insertObj => {
     const insert = insertObj.transfo;
@@ -53,7 +53,7 @@ const handleInserts = (
 
 const handleNeeds = (
   db: Loki,
-  needs: ReadonlyArray<IQueryTransfo<ITaskTransformNeed>>,
+  needs: ReadonlyArray<IQueryTransfo<ITaskTransformNeedInternal>>,
   time: number
 ): INeedResource[] => {
   return needs.map(needObj => {

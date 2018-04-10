@@ -83,6 +83,41 @@ export const position = (
   throw new Error('Invalid position');
 };
 
+export const duration = (
+  target: number,
+  min?: number
+): Record<'duration', client.ITimeDuration> => {
+  return {
+    duration: { target, min },
+  };
+};
+
+export const durationInternal = (
+  target: number,
+  min?: number
+): Record<'duration', internal.ITimeDurationInternal> => {
+  return {
+    duration: { target, min: min ? min : target },
+  };
+};
+
+/* tslint:disable:no-object-literal-type-assertion */
+const tb = <T extends 'start' | 'end'>(t: T) => (target?: number, max?: number, min?: number) => {
+  return {
+    [t]: { target, max, min },
+  } as Record<T, client.ITimeBoundary>;
+};
+/* tslint:enable:no-object-literal-type-assertion */
+
+export const start = tb('start');
+export const end = tb('end');
+
+export const positionHelper = (
+  ...factories: Array<Partial<client.IQueryPosition>>
+): Record<'position', internal.IQueryPositionInternal> => {
+  return position(factories.reduce((a, b) => ({ ...a, ...b }), {}) as client.IQueryPosition);
+};
+
 export const queryLink = (
   distance: client.ITimeBoundary,
   origin: 'start' | 'end',
@@ -164,6 +199,15 @@ export const need = (
   };
 };
 
+const defaultQuantityToOne = (
+  insert: { quantity?: number, [key:string]: any }
+): any => {
+  return {
+    ...insert,
+    quantity: insert.quantity != null ? insert.quantity : 1,
+  };
+};
+
 /**
  * Construct query's `transforms` property
  */
@@ -174,8 +218,8 @@ export const transformsHelper = (
 ): Record<'transforms', internal.IQueryTransformationInternal> => ({
   transforms: {
     deletes: needs.filter(n => updates.every(update => update.ref !== n.ref)).map(n => n.ref),
-    inserts,
-    needs,
+    inserts: inserts.map(defaultQuantityToOne),
+    needs: inserts.map(defaultQuantityToOne),
     updates,
   },
 });
@@ -199,7 +243,9 @@ export const transforms = (
  * @param factories Partial query objects resulting from factories functions
  * @returns Query object built from merging all partials
  */
-export const queryFactory = (...factories: Array<Partial<internal.IQueryInternal>>): internal.IQueryInternal => {
+export const queryFactory = (
+  ...factories: Array<Partial<internal.IQueryInternal>>
+): internal.IQueryInternal => {
   return {
     ...id(),
     ...name(),

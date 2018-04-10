@@ -3,7 +3,6 @@ import test from 'ava';
 
 import {
   atomicToPotentiality,
-  goalToPotentiality,
   linkToMask,
   mapToHourRange,
   mapToMonthRange,
@@ -13,7 +12,6 @@ import {
 
 import { IConfig } from '../data-structures/config.interface';
 import { IMaterial } from '../data-structures/material.interface';
-import { IPotentiality } from '../data-structures/potentiality.interface';
 
 test('will map nothing when no timeRestrictions', t => {
   const start = new Date().setHours(0, 0, 0, 0);
@@ -105,10 +103,7 @@ test('will map from month timeRestrictions when overlapping range', t => {
 
 test('will convert atomic to potentiality (start, duration)', t => {
   const config: IConfig = { startDate: 0, endDate: 10 };
-  const atomic: Q.IAtomicQuery = Q.queryFactory<Q.IAtomicQuery>(
-    Q.start(5),
-    Q.duration(Q.timeDuration(1))
-  );
+  const atomic: Q.IQuery = Q.queryFactory(Q.positionHelper(Q.start(5), Q.duration(1)));
   const pot = atomicToPotentiality(config)(atomic);
 
   t.is(pot.length, 1);
@@ -121,7 +116,7 @@ test('will convert atomic to potentiality (start, duration)', t => {
 
 test('will convert atomic to potentiality (start, end)', t => {
   const config: IConfig = { startDate: 0, endDate: 10 };
-  const atomic: Q.IAtomicQuery = Q.queryFactory<Q.IAtomicQuery>(Q.start(5), Q.end(6));
+  const atomic: Q.IQuery = Q.queryFactory(Q.positionHelper(Q.start(5), Q.end(6)));
   const pot = atomicToPotentiality(config)(atomic);
 
   t.is(pot.length, 1);
@@ -155,10 +150,7 @@ test('will link to mask (one material) end', t => {
     potentialId: 0,
     queryId: 0,
   };
-  const query = Q.queryFactory<Q.IAtomicQuery>(
-    Q.duration(Q.timeDuration(10, 5)),
-    Q.links(queryLink)
-  );
+  const query = Q.queryFactory(Q.positionHelper(Q.duration(10, 5)), Q.links([queryLink]));
   const result = linkToMask(materials, config)(query);
   t.is(result.length, 1);
   t.is(result[0].start, 10);
@@ -181,10 +173,7 @@ test('will link to mask (one material) start', t => {
     potentialId: 0,
     queryId: 0,
   };
-  const query = Q.queryFactory<Q.IAtomicQuery>(
-    Q.duration(Q.timeDuration(4, 2)),
-    Q.links(queryLink)
-  );
+  const query = Q.queryFactory(Q.positionHelper(Q.duration(4, 2)), Q.links([queryLink]));
   const result = linkToMask(materials, config)(query);
   t.is(result.length, 1);
   t.is(result[0].start, 5);
@@ -213,10 +202,7 @@ test('will link to mask (potential with multiples places) end', t => {
     potentialId: 0,
     queryId: 0,
   };
-  const query = Q.queryFactory<Q.IAtomicQuery>(
-    Q.duration(Q.timeDuration(4, 2)),
-    Q.links(queryLink)
-  );
+  const query = Q.queryFactory(Q.positionHelper(Q.duration(4, 2)), Q.links([queryLink]));
   const result = linkToMask(materials, config)(query);
   t.is(result.length, 2);
   t.is(result[0].end, 19);
@@ -241,19 +227,22 @@ test('will link to mask (multiple links) end', t => {
     },
   ];
   const config: IConfig = { startDate: 0, endDate: 45 };
-  const query = Q.queryFactory<Q.IAtomicQuery>(
-    Q.duration(Q.timeDuration(4, 2)),
-    Q.links({
-      distance: { max: 10, min: 5, target: 8 },
-      origin: 'end',
-      potentialId: 0,
-      queryId: 0,
-    }, {
-      distance: { max: 5, min: 2, target: 3 },
-      origin: 'end',
-      potentialId: 0,
-      queryId: 1,
-    })
+  const query = Q.queryFactory(
+    Q.positionHelper(Q.duration(4, 2)),
+    Q.links([
+      {
+        distance: { max: 10, min: 5, target: 8 },
+        origin: 'end',
+        potentialId: 0,
+        queryId: 0,
+      },
+      {
+        distance: { max: 5, min: 2, target: 3 },
+        origin: 'end',
+        potentialId: 0,
+        queryId: 1,
+      },
+    ])
   );
   const result = linkToMask(materials, config)(query);
   t.is(result.length, 1);
@@ -261,25 +250,3 @@ test('will link to mask (multiple links) end', t => {
   t.is(result[0].start, 32);
 });
 
-test('will convert goal to potentiality', t => {
-  const config: IConfig = { startDate: 0, endDate: 10 };
-  const qgoal1: Q.IGoalQuery = Q.queryFactory<Q.IGoalQuery>(
-    Q.goal(Q.GoalKind.Atomic, Q.timeDuration(2), 5)
-  );
-  const qgoal2: Q.IGoalQuery = Q.queryFactory<Q.IGoalQuery>(
-    Q.goal(Q.GoalKind.Splittable, Q.timeDuration(2.5), 2.5)
-  );
-  const pot1 = goalToPotentiality(config)(qgoal1);
-  const pot2 = goalToPotentiality(config)(qgoal2);
-  const testPoten = (poten: IPotentiality[]) => {
-    t.is(poten.length, 4);
-    t.is(poten[0].places.length, 1);
-    t.is(poten[0].places[0].start, 0);
-    t.is(poten[0].places[0].end, 2.5);
-    t.is(poten[1].places.length, 1);
-    t.is(poten[1].places[0].start, 2.5);
-    t.is(poten[1].places[0].end, 5);
-  };
-  testPoten(pot1);
-  testPoten(pot2);
-});

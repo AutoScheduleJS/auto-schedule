@@ -1,16 +1,29 @@
 import {
-  ITaskTransformInsert,
-  ITaskTransformNeed,
   ITaskTransformUpdate,
   ITimeBoundary,
   ITimeRestrictions,
   QueryKind,
 } from './client.structures';
 
+export interface ITaskTransformInsertInternal {
+  readonly collectionName: string;
+  readonly doc: any;
+  readonly quantity: number;
+  readonly wait?: boolean;
+}
+
+export interface ITaskTransformNeedInternal {
+  readonly collectionName: string;
+  readonly ref: string; // Unique ID
+  readonly find: any;
+  readonly quantity: number;
+  readonly wait?: boolean;
+}
+
 export interface IQueryTransformationInternal {
-  readonly needs: ReadonlyArray<ITaskTransformNeed>;
+  readonly needs: ReadonlyArray<ITaskTransformNeedInternal>;
   readonly updates: ReadonlyArray<ITaskTransformUpdate>;
-  readonly inserts: ReadonlyArray<ITaskTransformInsert>;
+  readonly inserts: ReadonlyArray<ITaskTransformInsertInternal>;
   readonly deletes: ReadonlyArray<string>;
 }
 

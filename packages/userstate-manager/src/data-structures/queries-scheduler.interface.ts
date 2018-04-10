@@ -1,4 +1,4 @@
-import { ITimeDuration } from '@autoschedule/queries-fn';
+import { ITimeDurationInternal } from '@autoschedule/queries-fn';
 
 export interface IMaterial extends IRange {
   readonly queryId: number;
@@ -12,7 +12,7 @@ export interface IPotentiality {
   readonly potentialId: number;
   readonly pressure: number;
   readonly places: ReadonlyArray<IRange>;
-  readonly duration: ITimeDuration;
+  readonly duration: ITimeDurationInternal;
 }
 
 export interface IRange {

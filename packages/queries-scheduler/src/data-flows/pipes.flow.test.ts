@@ -1,4 +1,4 @@
-import { ITimeDuration } from '@autoschedule/queries-fn';
+import { ITimeDurationInternal } from '@autoschedule/queries-fn';
 import test from 'ava';
 import { isEqual } from 'intervals-fn';
 import { BehaviorSubject } from 'rxjs/BehaviorSubject';
@@ -20,7 +20,7 @@ import {
 } from './pipes.flow';
 
 const potentialFactory = (
-  dur: ITimeDuration,
+  dur: ITimeDurationInternal,
   places: IRange[],
   pressure = 0,
   queryId = 42
@@ -168,7 +168,7 @@ test('materialize will throw if no place available', t => {
   materializePotentiality(toPlace, updatePotentialsPressureFromMats([]), pChunks, errors1);
   const pChunks2 = computePressureChunks({ startDate: 42, endDate: 52 }, []);
   materializePotentiality(toPlace, updatePotentialsPressureFromMats([]), pChunks2, errors2);
-  return Observable.zip(errors1, errors2).pipe(map(vals => t.pass('should have errors')), first());
+  return Observable.zip(errors1, errors2).pipe(map(_ => t.pass('should have errors')), first());
 });
 
 test('materialize will throw if not placable without conflict', t => {

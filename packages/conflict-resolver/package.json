@@ -2,8 +2,9 @@
   "name": "@autoschedule/conflict-resolver",
   "version": "0.0.0-development",
   "description": "Conflict resolver",
-  "main": "dist/index.bundle.js",
-  "types": "dist/index.d.ts",
+  "main": "es/index.js",
+  "module": "es/index.js",
+  "types": "es/index.d.ts",
   "scripts": {
     "ava": "ava **/*.test.js",
     "test": ":",

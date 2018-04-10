@@ -1,7 +1,5 @@
 import {
-  GoalKind,
-  IAtomicQuery,
-  IGoalQuery,
+  IQuery,
   ITimeBoundary,
   ITimeDuration,
   ITimeRestriction,
