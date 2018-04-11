@@ -2,7 +2,7 @@
   "name": "@autoschedule/queries-fn",
   "version": "6.1.0",
   "description": "Queries fn",
-  "main": "es/index.js",
+  "main": "build/index.js",
   "module": "es/index.js",
   "types": "es/index.d.ts",
   "scripts": {
@@ -10,7 +10,7 @@
     "ava": "ava build/**/*.test.js",
     "test": "tslint -p ./ && npm run build:test && nyc --reporter=lcov npm run ava",
     "test:codecov": "tslint -p ./ && npm run build:test && nyc npm run ava",
-    "prepare": "npm run build:test -- -m es6 --outDir es"
+    "prepare": "npm run build:test && npm run build:test -- -m es6 --outDir es"
   },
   "repository": {
     "type": "git",

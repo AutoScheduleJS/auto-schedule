@@ -102,9 +102,9 @@ export const durationInternal = (
 };
 
 /* tslint:disable:no-object-literal-type-assertion */
-const tb = <T extends 'start' | 'end'>(t: T) => (target?: number, max?: number, min?: number) => {
+const tb = <T extends 'start' | 'end'>(t: T) => (target?: number, min?: number, max?: number) => {
   return {
-    [t]: { target, max, min },
+    [t]: { target, min, max },
   } as Record<T, client.ITimeBoundary>;
 };
 /* tslint:enable:no-object-literal-type-assertion */

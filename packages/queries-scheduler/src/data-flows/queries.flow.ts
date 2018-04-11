@@ -21,7 +21,7 @@ type mapRange = (r: IRange[], tm: IRange) => IRange[];
 type toTBToNumber = (t: keyof ITimeBoundary) => (o: any) => number;
 type getFirstFn = (rest: IRange) => IRange;
 type unfoldRange = (seed: IRange) => false | [IRange, IRange];
-type toTimeDur = (o: any) => ITimeDurationInternal;
+// type toTimeDur = (o: any) => ITimeDurationInternal;
 
 export const mapToMonthRange = (restricts: IRange[], mask: IRange): IRange[] => {
   const end = +moment(mask.end).endOf('day');
@@ -110,26 +110,18 @@ const getMaskFilterFn = (tr: ITimeRestriction, mapFn: mapRange): maskFn => {
     ]
   );
 };
-
-const ifHasStart = R.ifElse(R.has('start'));
-const ifHasEnd = R.ifElse(R.has('end'));
-const ifHasDuration = R.ifElse(R.has('duration'));
+const ifThen = <T, K>(cond: (a: T) => boolean) => (thenVal: K, elseVal: K) => (val: T) => cond(val) ? thenVal : elseVal;
+const ifHasStart = ifThen((q: IQuery) => q.position.start != null);
+const ifHasEnd = ifThen((q: IQuery) => q.position.end != null);
 // const queryIsSplittable = (query: IQuery) => !!query.splittable;
-const qStart: toTBToNumber = (t: keyof ITimeBoundary) => R.pathOr(0, ['start', t]);
-const qEnd: toTBToNumber = (t: keyof ITimeBoundary) => R.pathOr(0, ['end', t]);
-const qDuration: toTimeDur = R.pathOr({ min: 0, target: 0 }, ['duration']);
+const qStart: toTBToNumber = (t: keyof ITimeBoundary) => R.pathOr(0, ['position', 'start', t]);
+const qEnd: toTBToNumber = (t: keyof ITimeBoundary) => R.pathOr(0, ['position', 'end', t]);
 // const gQuantityTarget: toNumber = R.pipe(gQuantity, R.pathOr(1, ['target']) as toNumber);
 
-const atomicToDurationNb = (tStart: keyof ITimeBoundary, tEnd: keyof ITimeBoundary) =>
-  R.converge(R.subtract, [qEnd(tEnd), qStart(tStart)]);
+// const atomicToDurationNb = (tStart: keyof ITimeBoundary, tEnd: keyof ITimeBoundary) =>
+//   R.converge(R.subtract, [qEnd(tEnd), qStart(tStart)]);
 
-const atomicToDuration = ifHasDuration(
-  qDuration,
-  R.applySpec<ITimeDurationInternal>({
-    min: atomicToDurationNb('max', 'min'),
-    target: atomicToDurationNb('target', 'target'),
-  })
-);
+const atomicToDuration = (q: IQuery) => q.position.duration;
 
 /**
  * TODO: sanitize queries -> all timeBoundary's fields are mandatory
