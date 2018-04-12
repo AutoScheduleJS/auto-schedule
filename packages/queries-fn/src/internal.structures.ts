@@ -55,7 +55,7 @@ export interface IQueryInternal {
   readonly name: string;
   readonly kind: QueryKind;
   readonly position: IQueryPositionInternal;
-  readonly splittable?: boolean;
+  readonly splittable: boolean;
   readonly transforms?: IQueryTransformationInternal;
   readonly links?: ReadonlyArray<IQueryLinkInternal>;
   readonly timeRestrictions?: ITimeRestrictions;

@@ -366,10 +366,9 @@ test('debug version will emit intermediate results', t => {
 });
 
 test('debug version will emit materials and potentials stream', t => {
-  const now = moment();
-  const config: IConfig = { endDate: +moment(now).add(5, 'hours'), startDate: +now };
-  const atomicStart = +moment(now).add(1, 'hour');
-  const atomicEnd = +moment(now).add(3, 'hour');
+  const config: IConfig = { endDate: 50, startDate: 0 };
+  const atomicStart = 10;
+  const atomicEnd = 30;
   const queries: Q.IQueryInternal[] = [
     Q.queryFactory(
       Q.id(1),
@@ -379,7 +378,7 @@ test('debug version will emit materials and potentials stream', t => {
     Q.queryFactory(
       Q.id(2),
       Q.name('splittable goal 1'),
-      Q.positionHelper(Q.duration(+dur(3, 'hours'), +dur(5, 'hours'))),
+      Q.positionHelper(Q.duration(50, 30)),
       Q.splittable()
     ),
   ];
@@ -394,7 +393,7 @@ test('debug version will emit materials and potentials stream', t => {
         t.fail('should not emit errors');
       }
       t.true(mat.length === 3);
-      validateSE(t, mat[0], [+now, atomicStart], 2);
+      validateSE(t, mat[0], [0, atomicStart], 2);
       validateSE(t, mat[1], [atomicStart, atomicEnd], 1);
       validateSE(t, mat[2], [atomicEnd, config.endDate], 2);
     })

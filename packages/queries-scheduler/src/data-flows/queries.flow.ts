@@ -170,6 +170,6 @@ export const atomicToPotentiality = (config: IConfig) => (query: IQuery): IPoten
   const place = atomicToChildren(config)(query);
   const queryId = query.id;
   return [
-    { isSplittable: false, places: [place], duration, queryId, pressure: -1, potentialId: 0 },
+    { isSplittable: query.splittable, places: [place], duration, queryId, pressure: -1, potentialId: 0 },
   ];
 };

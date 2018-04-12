@@ -16,6 +16,10 @@ import { IPressureChunkPoint, IPressurePoint } from '../data-structures/pressure
 import { IRange } from '../data-structures/range.interface';
 
 const computePressureWithSpace = (p: IPotentiality, space: number): number => {
+  const min = p.duration.min / space; // [0,  +1[
+  if (min >= 1) {
+    return min;
+  }
   return (p.duration.min + p.duration.target) / space / 2;
 };
 

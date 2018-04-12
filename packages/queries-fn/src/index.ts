@@ -1,6 +1,5 @@
 import * as client from './client.structures';
 import * as internal from './internal.structures';
-
 export * from './client.structures';
 export * from './internal.structures';
 
@@ -257,6 +256,7 @@ export const queryFactory = (
     ...name(),
     ...kind(),
     ...position({ duration: { target: 2 } }),
+    ...splittable(false),
     ...factories.reduce((a, b) => ({ ...a, ...b }), {}),
   } as internal.IQueryInternal;
 };
@@ -281,7 +281,8 @@ export const sanitize = (query: any): internal.IQueryInternal => {
     position(query.position),
     links(query.links),
     timeRestrictions(query.timeRestrictions),
-    transforms(query.transforms)
+    transforms(query.transforms),
+    splittable(query.splittable)
   );
 };
 
