@@ -110,7 +110,9 @@ const getMaskFilterFn = (tr: ITimeRestriction, mapFn: mapRange): maskFn => {
     ]
   );
 };
-const ifThen = <T, K>(cond: (a: T) => boolean) => (thenVal: K, elseVal: K) => (val: T) => cond(val) ? thenVal : elseVal;
+const ifThen = <T, K>(cond: (a: T) => boolean) => (thenVal: (a: T) => K, elseVal: (a: T) => K) => (
+  val: T
+) => (cond(val) ? thenVal(val) : elseVal(val));
 const ifHasStart = ifThen((q: IQuery) => q.position.start != null);
 const ifHasEnd = ifThen((q: IQuery) => q.position.end != null);
 // const queryIsSplittable = (query: IQuery) => !!query.splittable;
