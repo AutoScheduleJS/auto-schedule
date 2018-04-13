@@ -41,7 +41,7 @@ const updatePotentialsPressureFromMats = (pots: IPotentiality[]) => (materials: 
 test('will compute pressure', t => {
   t.is(computePressure(potentialFactory({ min: 1, target: 1 }, [{ end: 1, start: 0 }])), 1);
   t.is(computePressure(potentialFactory({ min: 0, target: 1 }, [{ end: 1, start: 0 }])), 0.5);
-  t.is(computePressure(potentialFactory({ min: 0, target: 1 }, [{ end: 2, start: 0 }])), 0.25);
+  t.is(computePressure(potentialFactory({ min: 0, target: 1 }, [{ end: 2, start: 0 }])), 1 / 3);
   t.is(computePressure(potentialFactory({ min: 1, target: 1 }, [{ end: 2, start: 0 }])), 0.5);
   t.is(
     computePressure(
@@ -115,12 +115,7 @@ test('will materialize atomic potentiality', t => {
 test('will materialize atomic within big chunk', t => {
   const toPlace = potentialFactory({ min: 1, target: 1 }, [{ end: 7, start: 4 }], 1);
   const pChunks = computePressureChunks({ startDate: 0, endDate: 10 }, []);
-  const materials = materializePotentiality(
-    toPlace,
-    () => [],
-    pChunks,
-    new BehaviorSubject(null)
-  );
+  const materials = materializePotentiality(toPlace, () => [], pChunks, new BehaviorSubject(null));
   t.is(materials.length, 1);
   t.is(materials[0].start, 4);
   t.is(materials[0].end, 5);
@@ -129,12 +124,7 @@ test('will materialize atomic within big chunk', t => {
 test('will materialize without concurrent potentials', t => {
   const toPlace = potentialFactory({ min: 0, target: 1 }, [{ end: 10, start: 0 }], 0.5);
   const pChunks = computePressureChunks({ startDate: 0, endDate: 10 }, []);
-  const materials = materializePotentiality(
-    toPlace,
-    () => [],
-    pChunks,
-    new BehaviorSubject(null)
-  );
+  const materials = materializePotentiality(toPlace, () => [], pChunks, new BehaviorSubject(null));
   t.is(materials.length, 1);
   t.is(materials[0].start, 0);
   t.is(materials[0].end, 1);

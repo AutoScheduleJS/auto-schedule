@@ -15,12 +15,14 @@ import { IPressureChunk } from '../data-structures/pressure-chunk.interface';
 import { IPressureChunkPoint, IPressurePoint } from '../data-structures/pressure-point.interface';
 import { IRange } from '../data-structures/range.interface';
 
+const asymptotTo = (limit: number) => (value: number) => value / (value + 1) * limit;
+
 const computePressureWithSpace = (p: IPotentiality, space: number): number => {
-  const min = p.duration.min / space; // [0,  +1[
+  const min = p.duration.min / space;
   if (min >= 1) {
     return min;
   }
-  return (p.duration.min + p.duration.target) / space / 2;
+  return min + asymptotTo(1 - min)(p.duration.target / space);
 };
 
 export const computePressure = (p: IPotentiality): number => {
@@ -333,7 +335,10 @@ const potentialsToMeanPressure = R.pipe(
   R.mean
 );
 
-const potToSimul = (durationType: keyof ITimeDurationInternal, pot: IPotentiality): IPotentialitySimul => ({
+const potToSimul = (
+  durationType: keyof ITimeDurationInternal,
+  pot: IPotentiality
+): IPotentialitySimul => ({
   duration: pot.duration[durationType],
   isSplittable: pot.isSplittable,
   places: pot.places,
