@@ -1,7 +1,5 @@
 import {
-  IGoalQuery,
-  IQuery,
-  isGoalQuery,
+  IQueryInternal,
 } from '@autoschedule/queries-fn';
 
 import * as R from 'ramda';
@@ -21,12 +19,11 @@ import {
 } from '../data-flows/pipes.flow';
 import {
   atomicToPotentiality,
-  goalToPotentiality,
   linkToMask,
-  mapToHourRange,
-  mapToMonthRange,
-  mapToTimeRestriction,
-  mapToWeekdayRange,
+  // mapToHourRange,
+  // mapToMonthRange,
+  // mapToTimeRestriction,
+  // mapToWeekdayRange,
 } from '../data-flows/queries.flow';
 
 import { IConfig } from '../data-structures/config.interface';
@@ -35,6 +32,8 @@ import { IPotentiality } from '../data-structures/potentiality.interface';
 import { IPressureChunk } from '../data-structures/pressure-chunk.interface';
 import { IRange } from '../data-structures/range.interface';
 
+type IQuery = IQueryInternal;
+
 const sortByStart = R.sortBy<IMaterial>(R.prop('start'));
 const getMax = <T>(prop: keyof T, list: ReadonlyArray<T>): T =>
   R.reduce(R.maxBy(R.prop(prop) as (n: any) => number), list[0], list);
@@ -42,7 +41,7 @@ const getMax = <T>(prop: keyof T, list: ReadonlyArray<T>): T =>
 export const queriesToPipeline$ = (config: IConfig) => (stateManager: stateManagerType) => (
   queries: ReadonlyArray<IQuery>
 ): Observable<ReadonlyArray<IMaterial>> => {
-  return Observable.forkJoin(queriesToPipelineDebug$(config, false)(stateManager)(queries)).pipe(
+  return Observable.forkJoin(queriesToPipelineDebug$(config)(stateManager)(queries)).pipe(
     map((values: any) => {
       if (values[0] != null) {
         throw valueToError(values);
@@ -61,9 +60,9 @@ const takeLatestFromBS = <T, D>(bs: BehaviorSubject<D>) => (source: Observable<T
 
 export type stateManagerType = (
   c: IConfig
-) => (q: IQuery[]) => (q: IQuery, p: IPotentiality[], m: IMaterial[]) => IRange[];
+) => (q: IQueryInternal[]) => (q: IQueryInternal, p: IPotentiality[], m: IMaterial[]) => IRange[];
 
-export const queriesToPipelineDebug$ = (config: IConfig, debug?: boolean) => (
+export const queriesToPipelineDebug$ = (config: IConfig) => (
   stateManager: stateManagerType
 ) => (
   queries: ReadonlyArray<IQuery>
@@ -305,9 +304,6 @@ const addMaterials = (materials$: BehaviorSubject<ReadonlyArray<IMaterial>>) => 
 };
 
 const queryToPotentiality = (config: IConfig) => (query: IQuery) => {
-  if (isGoalQuery(query)) {
-    return goalToPotentiality(config)(query);
-  }
   return atomicToPotentiality(config)(query);
 };
 
@@ -326,19 +322,16 @@ const defaultMask = (config: IConfig): IRange[] => [
   },
 ];
 
-const queryToMask = R.curry((config: IConfig, query: IQuery): IRange[] => {
-  if (isGoalQuery(query)) {
-    return timeRestToMask(config, query);
-  }
+const queryToMask = R.curry((config: IConfig, _: IQuery): IRange[] => {
   return defaultMask(config);
 });
 
-const timeRestToMask = (config: IConfig, query: IGoalQuery): IRange[] => {
-  const timeRestrictions = query.timeRestrictions || {};
-  const maskPipeline = R.pipe(
-    mapToTimeRestriction(timeRestrictions.month, mapToMonthRange),
-    mapToTimeRestriction(timeRestrictions.weekday, mapToWeekdayRange),
-    mapToTimeRestriction(timeRestrictions.hour, mapToHourRange)
-  );
-  return maskPipeline([{ start: config.startDate, end: config.endDate }]);
-};
+// const timeRestToMask = (config: IConfig, query: IGoalQuery): IRange[] => {
+//   const timeRestrictions = query.timeRestrictions || {};
+//   const maskPipeline = R.pipe(
+//     mapToTimeRestriction(timeRestrictions.month, mapToMonthRange),
+//     mapToTimeRestriction(timeRestrictions.weekday, mapToWeekdayRange),
+//     mapToTimeRestriction(timeRestrictions.hour, mapToHourRange)
+//   );
+//   return maskPipeline([{ start: config.startDate, end: config.endDate }]);
+// };

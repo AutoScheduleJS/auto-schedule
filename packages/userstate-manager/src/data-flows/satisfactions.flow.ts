@@ -1,8 +1,8 @@
 import {
-  ITaskTransformInsert,
-  ITaskTransformNeed,
+  IQueryTransformationInternal,
+  ITaskTransformInsertInternal,
+  ITaskTransformNeedInternal,
   ITaskTransformUpdate,
-  ITransformation,
 } from '@autoschedule/queries-fn';
 import * as loki from 'lokijs';
 import { aperture, times } from 'ramda';
@@ -22,7 +22,7 @@ import { cleanLokiDoc, handleTransformations, updateDoc } from './transformation
 
 export const computeRangeSatisfaction = (
   db: Loki,
-  transfo: ITransformation,
+  transfo: IQueryTransformationInternal,
   timeTransfo: ITransformationTime[]
 ): [IRangeNeedSatisfaction[], INeedResource[]] => {
   let inputResources: INeedResource[] = [];
@@ -47,7 +47,7 @@ export const computeOutputSatisfaction = (
   config: IRange,
   queryDocs: IRefDoc[],
   needResources: IGroupNeedResource[],
-  transforms: ITransformation,
+  transforms: IQueryTransformationInternal,
   shrinkSpace: (id: IIdentifier) => number,
   queryId: string
 ): ITransformSatisfaction[] => {
@@ -135,7 +135,7 @@ const computeInsertSatisfaction = (
   docMatchFind: (doc: any, find: any) => any[],
   nrToMT: (nr: IGroupNeedResource) => number[],
   needResources: IGroupNeedResource[],
-  inserts: ReadonlyArray<ITaskTransformInsert>,
+  inserts: ReadonlyArray<ITaskTransformInsertInternal>,
   queryId: string
 ): ITransformSatisfaction[] => {
   const outputSatis: ITransformSatisfaction[] = [];
@@ -168,7 +168,7 @@ const computeInsertSatisfaction = (
 };
 
 const satisfiedFromInsertNeedResources = (
-  insert: ITaskTransformInsert,
+  insert: ITaskTransformInsertInternal,
   needResources: IGroupNeedResource[],
   match: (d: any, f: any) => any[]
 ): IGroupNeedResource[] => {
@@ -182,7 +182,7 @@ const satisfiedFromInsertNeedResources = (
 
 const computeNeedSatisfaction = (
   db: Loki,
-  needs: ReadonlyArray<ITaskTransformNeed>
+  needs: ReadonlyArray<ITaskTransformNeedInternal>
 ): INeedSatisfaction[] =>
   needs.map(need => {
     const col = db.getCollection(need.collectionName);

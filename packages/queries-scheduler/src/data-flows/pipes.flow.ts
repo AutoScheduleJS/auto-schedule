@@ -1,4 +1,4 @@
-import { ITimeDuration } from '@autoschedule/queries-fn';
+import { ITimeDurationInternal } from '@autoschedule/queries-fn';
 import { intersect, isDuring, isOverlapping, substract } from 'intervals-fn';
 import * as R from 'ramda';
 import { BehaviorSubject } from 'rxjs/BehaviorSubject';
@@ -15,8 +15,14 @@ import { IPressureChunk } from '../data-structures/pressure-chunk.interface';
 import { IPressureChunkPoint, IPressurePoint } from '../data-structures/pressure-point.interface';
 import { IRange } from '../data-structures/range.interface';
 
+const asymptotTo = (limit: number) => (value: number) => value / (value + 1) * limit;
+
 const computePressureWithSpace = (p: IPotentiality, space: number): number => {
-  return (p.duration.min + p.duration.target) / space / 2;
+  const min = p.duration.min / space;
+  if (min >= 1) {
+    return min;
+  }
+  return min + asymptotTo(1 - min)(p.duration.target / space);
 };
 
 export const computePressure = (p: IPotentiality): number => {
@@ -108,11 +114,11 @@ const fillLimitedArray = <T>(limit: number) => (arr: T[], value: T): T[] => {
   return arr.length < limit ? [...arr, value] : [...R.drop(1, arr), value];
 };
 
-const continueProgress = (progress: number[]): boolean => {
+const isProgressing = (progress: number[]): boolean => {
   return (
     (progress.length === 1 ||
       !R.reduceWhile(
-        ({ similar, value }, cur) => similar,
+        ({ similar }, _) => similar,
         ({ similar, value }, cur) => ({ similar: similar && Object.is(value, cur), value: cur }),
         { similar: true, value: progress[0] },
         progress
@@ -126,6 +132,7 @@ const maxPlaceAvailable = (pot: IPotentiality) =>
 
 const findMaxFinitePlacement = (
   toPlace: IPotentiality,
+  minAvg: number,
   updatePP: (m: IMaterial[]) => IPotentiality[],
   pressure: IPressureChunk[],
   error$: BehaviorSubject<any>
@@ -151,7 +158,7 @@ const findMaxFinitePlacement = (
       avgPre > myPre ? testDuration - durationDelta : testDuration + durationDelta
     );
     lastProgress = fillArray(lastProgress, Math.abs(avgPre - myPre));
-  } while (continueProgress(lastProgress));
+  } while (!areSameNumber(0.1)(minAvg, avgPre) && isProgressing(lastProgress));
   const err: IMaterial[] = [];
   if (!materials.length || !validatePotentials(pots)) {
     error$.next(new ConflictError(toPlace.queryId)); // Throw pots with pressure > 1
@@ -187,7 +194,7 @@ export const materializePotentiality = (
     error$.next(new ConflictError(toPlace.queryId)); // use pots with > 1 pressure
     return [];
   }
-  return findMaxFinitePlacement(toPlace, updatePP, pressure, error$);
+  return findMaxFinitePlacement(toPlace, minAvg, updatePP, pressure, error$);
 };
 
 const getProportionalPressure = (
@@ -226,7 +233,7 @@ const divideChunkByDuration = (duration: number) => (chunk: IPressureChunk): IRa
   ];
 };
 
-const rangeChunkIntersectin = (duration: number, chunks: IPressureChunk[]) => (range: IRange) => {
+const rangeChunkIntersectin = (chunks: IPressureChunk[]) => (range: IRange) => {
   const inter = intersect(range, chunks);
   if (!inter.length) {
     return null;
@@ -243,7 +250,7 @@ const computeContiguousPressureChunk = (
   }
   return R.unnest(chunks.map(divideChunkByDuration(duration)))
     .filter(c => c.start >= firstTimeRange(chunks) && c.end <= lastTimeRange(chunks))
-    .map(rangeChunkIntersectin(duration, chunks))
+    .map(rangeChunkIntersectin(chunks))
     .filter(p => p != null && p.end - p.start >= duration) as IPressureChunk[];
 };
 
@@ -273,7 +280,7 @@ const minimizeChunkToDuration = (chunk: IPressureChunk, duration: number): IPres
 
 const placeAtomic = (toPlace: IPotentialitySimul, pressure: IPressureChunk[]): IMaterial[] => {
   if (toPlace.places.length === 1 && rangeToDuration(toPlace.places[0]) === toPlace.duration) {
-    const result = rangeChunkIntersectin(toPlace.duration, pressure)(toPlace.places[0]);
+    const result = rangeChunkIntersectin(pressure)(toPlace.places[0]);
     if (result) {
       return [rangeToMaterial(toPlace, result)];
     }
@@ -329,7 +336,10 @@ const potentialsToMeanPressure = R.pipe(
   R.mean
 );
 
-const potToSimul = (durationType: keyof ITimeDuration, pot: IPotentiality): IPotentialitySimul => ({
+const potToSimul = (
+  durationType: keyof ITimeDurationInternal,
+  pot: IPotentiality
+): IPotentialitySimul => ({
   duration: pot.duration[durationType],
   isSplittable: pot.isSplittable,
   places: pot.places,

@@ -1,6 +1,5 @@
 import * as client from './client.structures';
 import * as internal from './internal.structures';
-
 export * from './client.structures';
 export * from './internal.structures';
 
@@ -81,6 +80,41 @@ export const position = (
     return { position: { ...pos, duration: dur } };
   }
   throw new Error('Invalid position');
+};
+
+export const duration = (
+  target: number,
+  min?: number
+): Record<'duration', client.ITimeDuration> => {
+  return {
+    duration: { target, min },
+  };
+};
+
+export const durationInternal = (
+  target: number,
+  min?: number
+): Record<'duration', internal.ITimeDurationInternal> => {
+  return {
+    duration: { target, min: min ? min : target },
+  };
+};
+
+/* tslint:disable:no-object-literal-type-assertion */
+const tb = <T extends 'start' | 'end'>(t: T) => (target?: number, min?: number, max?: number) => {
+  return {
+    [t]: { target, min, max },
+  } as Record<T, client.ITimeBoundary>;
+};
+/* tslint:enable:no-object-literal-type-assertion */
+
+export const start = tb('start');
+export const end = tb('end');
+
+export const positionHelper = (
+  ...factories: Array<Partial<client.IQueryPosition>>
+): Record<'position', internal.IQueryPositionInternal> => {
+  return position(factories.reduce((a, b) => ({ ...a, ...b }), {}) as client.IQueryPosition);
 };
 
 export const queryLink = (
@@ -164,6 +198,15 @@ export const need = (
   };
 };
 
+const defaultQuantityToOne = (
+  insert: { quantity?: number, [key:string]: any }
+): any => {
+  return {
+    ...insert,
+    quantity: insert.quantity != null ? insert.quantity : 1,
+  };
+};
+
 /**
  * Construct query's `transforms` property
  */
@@ -174,8 +217,8 @@ export const transformsHelper = (
 ): Record<'transforms', internal.IQueryTransformationInternal> => ({
   transforms: {
     deletes: needs.filter(n => updates.every(update => update.ref !== n.ref)).map(n => n.ref),
-    inserts,
-    needs,
+    inserts: inserts.map(defaultQuantityToOne),
+    needs: needs.map(defaultQuantityToOne),
     updates,
   },
 });
@@ -193,18 +236,27 @@ export const transforms = (
   );
 };
 
+export const splittable = (split?: boolean): Record<'splittable', boolean> => {
+  return {
+    splittable: split == null ? true : split
+  }
+}
+
 /* tslint:disable:no-object-literal-type-assertion */
 /**
  * Merge all partials queries to form one query. Provide default `id`, `name` and `kind` (`IBaseQuery` properties)
  * @param factories Partial query objects resulting from factories functions
  * @returns Query object built from merging all partials
  */
-export const queryFactory = (...factories: Array<Partial<internal.IQueryInternal>>): internal.IQueryInternal => {
+export const queryFactory = (
+  ...factories: Array<Partial<internal.IQueryInternal>>
+): internal.IQueryInternal => {
   return {
     ...id(),
     ...name(),
     ...kind(),
     ...position({ duration: { target: 2 } }),
+    ...splittable(false),
     ...factories.reduce((a, b) => ({ ...a, ...b }), {}),
   } as internal.IQueryInternal;
 };
@@ -229,7 +281,8 @@ export const sanitize = (query: any): internal.IQueryInternal => {
     position(query.position),
     links(query.links),
     timeRestrictions(query.timeRestrictions),
-    transforms(query.transforms)
+    transforms(query.transforms),
+    splittable(query.splittable)
   );
 };
 

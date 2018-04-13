@@ -2,12 +2,13 @@
   "name": "@autoschedule/conflict-resolver",
   "version": "0.0.0-development",
   "description": "Conflict resolver",
-  "main": "dist/index.bundle.js",
-  "types": "dist/index.d.ts",
+  "main": "es/index.js",
+  "module": "es/index.js",
+  "types": "es/index.d.ts",
   "scripts": {
     "ava": "ava **/*.test.js",
     "test": ":",
-    "test:codecov": "tslint -p ./ && tsc && nyc npm run ava",
+    "test:codecov": "tslint -p ./ && npm run build:test && nyc npm run ava",
     "doc": "npm run build && typedoc --out docs/ dist/"
   },
   "repository": {
@@ -29,10 +30,12 @@
     "url": "https://github.com/AutoScheduleJS/conflict-resolver/issues"
   },
   "homepage": "https://github.com/AutoScheduleJS/conflict-resolver#readme",
-  "dependencies": {},
+  "dependencies": {
+  },
   "devDependencies": {
     "ava": "^0.25.0",
     "cz-conventional-changelog": "^2.1.0",
+    "esm": "^3.0.17",
     "nyc": "^11.6.0",
     "typescript": "^2.8.1"
   },
@@ -40,5 +43,10 @@
     "commitizen": {
       "path": "./node_modules/cz-conventional-changelog"
     }
-  }
+  },
+  "ava": {
+		"require": [
+			"esm"
+		]
+	}
 }

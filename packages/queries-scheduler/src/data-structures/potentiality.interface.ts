@@ -1,4 +1,4 @@
-import { ITimeDuration } from '@autoschedule/queries-fn';
+import { ITimeDurationInternal } from '@autoschedule/queries-fn';
 import { IRange } from './range.interface';
 
 export interface IPotentialityBase {
@@ -10,7 +10,7 @@ export interface IPotentialityBase {
 
 export interface IPotentiality extends IPotentialityBase {
   readonly pressure: number;
-  readonly duration: ITimeDuration;
+  readonly duration: ITimeDurationInternal;
 }
 
 export interface IPotentialitySimul extends IPotentialityBase {

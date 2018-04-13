@@ -1,9 +1,7 @@
 import {
-  GoalKind,
-  IAtomicQuery,
-  IGoalQuery,
+  IQueryInternal,
   ITimeBoundary,
-  ITimeDuration,
+  ITimeDurationInternal,
   ITimeRestriction,
   RestrictionCondition,
 } from '@autoschedule/queries-fn';
@@ -16,13 +14,14 @@ import { IMaterial } from '../data-structures/material.interface';
 import { IPotentiality } from '../data-structures/potentiality.interface';
 import { IRange } from '../data-structures/range.interface';
 
+type IQuery = IQueryInternal;
 type maskFn = (tm: IRange) => IRange[];
 type mapRange = (r: IRange[], tm: IRange) => IRange[];
-type toNumber = (o: any) => number;
+// type toNumber = (o: any) => number;
 type toTBToNumber = (t: keyof ITimeBoundary) => (o: any) => number;
 type getFirstFn = (rest: IRange) => IRange;
 type unfoldRange = (seed: IRange) => false | [IRange, IRange];
-type toTimeDur = (o: any) => ITimeDuration;
+// type toTimeDur = (o: any) => ITimeDurationInternal;
 
 export const mapToMonthRange = (restricts: IRange[], mask: IRange): IRange[] => {
   const end = +moment(mask.end).endOf('day');
@@ -111,59 +110,20 @@ const getMaskFilterFn = (tr: ITimeRestriction, mapFn: mapRange): maskFn => {
     ]
   );
 };
+const ifThen = <T, K>(cond: (a: T) => boolean) => (thenVal: (a: T) => K, elseVal: (a: T) => K) => (
+  val: T
+) => (cond(val) ? thenVal(val) : elseVal(val));
+const ifHasStart = ifThen((q: IQuery) => q.position.start != null);
+const ifHasEnd = ifThen((q: IQuery) => q.position.end != null);
+// const queryIsSplittable = (query: IQuery) => !!query.splittable;
+const qStart: toTBToNumber = (t: keyof ITimeBoundary) => R.pathOr(0, ['position', 'start', t]);
+const qEnd: toTBToNumber = (t: keyof ITimeBoundary) => R.pathOr(0, ['position', 'end', t]);
+// const gQuantityTarget: toNumber = R.pipe(gQuantity, R.pathOr(1, ['target']) as toNumber);
 
-const ifHasStart = R.ifElse(R.has('start'));
-const ifHasEnd = R.ifElse(R.has('end'));
-const ifHasDuration = R.ifElse(R.has('duration'));
-const queryIsSplittable = (query: IGoalQuery) => query.goal.kind === GoalKind.Splittable;
-const qStart: toTBToNumber = (t: keyof ITimeBoundary) => R.pathOr(0, ['start', t]);
-const qEnd: toTBToNumber = (t: keyof ITimeBoundary) => R.pathOr(0, ['end', t]);
-const qDuration: toTimeDur = R.pathOr({ min: 0, target: 0 }, ['duration']);
-const gQuantity: toTimeDur = R.pathOr({ min: 0, target: 0 }, ['goal', 'quantity']);
-const gQuantityTarget: toNumber = R.pipe(gQuantity, R.pathOr(1, ['target']) as toNumber);
-const gtime: toNumber = R.pathOr(0, ['goal', 'time']);
+// const atomicToDurationNb = (tStart: keyof ITimeBoundary, tEnd: keyof ITimeBoundary) =>
+//   R.converge(R.subtract, [qEnd(tEnd), qStart(tStart)]);
 
-const goalToDuration = R.ifElse(queryIsSplittable, gQuantity, qDuration);
-const goalToTimeloop = R.ifElse(
-  queryIsSplittable,
-  gtime,
-  R.converge(R.divide, [gtime, gQuantityTarget])
-);
-
-const goalToSubpipes = (config: IConfig, query: IGoalQuery): IRange[] => {
-  const start = config.startDate;
-  const timeloop = goalToTimeloop(query);
-  const maxDuration = config.endDate - config.startDate;
-  const subpipeCount = Math.floor(maxDuration / timeloop);
-  return R.times(
-    i => ({ start: start + timeloop * i, end: start + timeloop * (i + 1) }),
-    subpipeCount
-  );
-};
-
-export const goalToPotentiality = (config: IConfig) => (query: IGoalQuery): IPotentiality[] => {
-  const duration = goalToDuration(query);
-  const subpipes = goalToSubpipes(config, query);
-  return subpipes.map((mask, i) => ({
-    duration,
-    isSplittable: queryIsSplittable(query),
-    places: [mask],
-    potentialId: i,
-    pressure: -1,
-    queryId: query.id,
-  }));
-};
-
-const atomicToDurationNb = (tStart: keyof ITimeBoundary, tEnd: keyof ITimeBoundary) =>
-  R.converge(R.subtract, [qEnd(tEnd), qStart(tStart)]);
-
-const atomicToDuration = ifHasDuration(
-  qDuration,
-  R.applySpec<ITimeDuration>({
-    min: atomicToDurationNb('max', 'min'),
-    target: atomicToDurationNb('target', 'target'),
-  })
-);
+const atomicToDuration = (q: IQuery) => q.position.duration;
 
 /**
  * TODO: sanitize queries -> all timeBoundary's fields are mandatory
@@ -175,7 +135,7 @@ const shiftWithTimeBoundary = (shift: ITimeBoundary, origin: number) => ({
 });
 
 export const linkToMask = (materials: ReadonlyArray<IMaterial>, config: IConfig) => (
-  query: IAtomicQuery
+  query: IQuery
 ): ReadonlyArray<IRange> => {
   if (!query.links) {
     return [{ end: config.endDate, start: config.startDate }];
@@ -205,11 +165,11 @@ const atomicToChildren = (c: IConfig) =>
     start: ifHasStart(qStart('target'), R.always(c.startDate)),
   });
 
-export const atomicToPotentiality = (config: IConfig) => (query: IAtomicQuery): IPotentiality[] => {
-  const duration = atomicToDuration(query) as ITimeDuration;
+export const atomicToPotentiality = (config: IConfig) => (query: IQuery): IPotentiality[] => {
+  const duration = atomicToDuration(query) as ITimeDurationInternal;
   const place = atomicToChildren(config)(query);
   const queryId = query.id;
   return [
-    { isSplittable: false, places: [place], duration, queryId, pressure: -1, potentialId: 0 },
+    { isSplittable: query.splittable, places: [place], duration, queryId, pressure: -1, potentialId: 0 },
   ];
 };
