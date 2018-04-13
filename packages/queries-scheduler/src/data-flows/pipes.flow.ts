@@ -114,7 +114,7 @@ const fillLimitedArray = <T>(limit: number) => (arr: T[], value: T): T[] => {
   return arr.length < limit ? [...arr, value] : [...R.drop(1, arr), value];
 };
 
-const continueProgress = (progress: number[]): boolean => {
+const isProgressing = (progress: number[]): boolean => {
   return (
     (progress.length === 1 ||
       !R.reduceWhile(
@@ -132,6 +132,7 @@ const maxPlaceAvailable = (pot: IPotentiality) =>
 
 const findMaxFinitePlacement = (
   toPlace: IPotentiality,
+  minAvg: number,
   updatePP: (m: IMaterial[]) => IPotentiality[],
   pressure: IPressureChunk[],
   error$: BehaviorSubject<any>
@@ -157,7 +158,7 @@ const findMaxFinitePlacement = (
       avgPre > myPre ? testDuration - durationDelta : testDuration + durationDelta
     );
     lastProgress = fillArray(lastProgress, Math.abs(avgPre - myPre));
-  } while (continueProgress(lastProgress));
+  } while (!areSameNumber(0.1)(minAvg, avgPre) && isProgressing(lastProgress));
   const err: IMaterial[] = [];
   if (!materials.length || !validatePotentials(pots)) {
     error$.next(new ConflictError(toPlace.queryId)); // Throw pots with pressure > 1
@@ -193,7 +194,7 @@ export const materializePotentiality = (
     error$.next(new ConflictError(toPlace.queryId)); // use pots with > 1 pressure
     return [];
   }
-  return findMaxFinitePlacement(toPlace, updatePP, pressure, error$);
+  return findMaxFinitePlacement(toPlace, minAvg, updatePP, pressure, error$);
 };
 
 const getProportionalPressure = (

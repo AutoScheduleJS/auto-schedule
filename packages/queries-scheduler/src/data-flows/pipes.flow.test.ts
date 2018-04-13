@@ -42,12 +42,12 @@ test('will compute pressure', t => {
   t.is(computePressure(potentialFactory({ min: 1, target: 1 }, [{ end: 1, start: 0 }])), 1);
   t.is(computePressure(potentialFactory({ min: 0, target: 1 }, [{ end: 1, start: 0 }])), 0.5);
   t.is(computePressure(potentialFactory({ min: 0, target: 1 }, [{ end: 2, start: 0 }])), 1 / 3);
-  t.is(computePressure(potentialFactory({ min: 1, target: 1 }, [{ end: 2, start: 0 }])), 0.5);
+  t.is(computePressure(potentialFactory({ min: 1, target: 1 }, [{ end: 2, start: 0 }])), 2 / 3);
   t.is(
     computePressure(
       potentialFactory({ min: 1, target: 1 }, [{ end: 1, start: 0 }, { end: 2, start: 1 }])
     ),
-    0.5
+    2 / 3
   );
 });
 
