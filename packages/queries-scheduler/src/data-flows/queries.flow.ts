@@ -17,11 +17,8 @@ import { IRange } from '../data-structures/range.interface';
 type IQuery = IQueryInternal;
 type maskFn = (tm: IRange) => IRange[];
 type mapRange = (r: IRange[], tm: IRange) => IRange[];
-// type toNumber = (o: any) => number;
-type toTBToNumber = (t: keyof ITimeBoundary) => (o: any) => number;
 type getFirstFn = (rest: IRange) => IRange;
 type unfoldRange = (seed: IRange) => false | [IRange, IRange];
-// type toTimeDur = (o: any) => ITimeDurationInternal;
 
 export const mapToMonthRange = (restricts: IRange[], mask: IRange): IRange[] => {
   const end = +moment(mask.end).endOf('day');
@@ -110,18 +107,6 @@ const getMaskFilterFn = (tr: ITimeRestriction, mapFn: mapRange): maskFn => {
     ]
   );
 };
-const ifThen = <T, K>(cond: (a: T) => boolean) => (thenVal: (a: T) => K, elseVal: (a: T) => K) => (
-  val: T
-) => (cond(val) ? thenVal(val) : elseVal(val));
-const ifHasStart = ifThen((q: IQuery) => q.position.start != null);
-const ifHasEnd = ifThen((q: IQuery) => q.position.end != null);
-// const queryIsSplittable = (query: IQuery) => !!query.splittable;
-const qStart: toTBToNumber = (t: keyof ITimeBoundary) => R.pathOr(0, ['position', 'start', t]);
-const qEnd: toTBToNumber = (t: keyof ITimeBoundary) => R.pathOr(0, ['position', 'end', t]);
-// const gQuantityTarget: toNumber = R.pipe(gQuantity, R.pathOr(1, ['target']) as toNumber);
-
-// const atomicToDurationNb = (tStart: keyof ITimeBoundary, tEnd: keyof ITimeBoundary) =>
-//   R.converge(R.subtract, [qEnd(tEnd), qStart(tStart)]);
 
 const atomicToDuration = (q: IQuery) => q.position.duration;
 
@@ -159,17 +144,37 @@ export const linkToMask = (materials: ReadonlyArray<IMaterial>, config: IConfig)
     .reduce((a, b) => intersect(a, b));
 };
 
-const atomicToChildren = (c: IConfig) =>
-  R.applySpec<IRange>({
-    end: ifHasEnd(qEnd('target'), R.always(c.endDate)),
-    start: ifHasStart(qStart('target'), R.always(c.startDate)),
-  });
+const propOrDefault = <K>(
+  defaultValue: K[keyof K],
+  obj: K | undefined,
+  propToCheck: Array<keyof K>
+): K[keyof K] => {
+  if (obj == null) {
+    return defaultValue;
+  }
+  const resultProp = propToCheck.find(prop => obj[prop] != null);
+  return resultProp ? obj[resultProp] : defaultValue;
+};
+
+const atomicToChildren = (c: IConfig, q: IQuery) => {
+  return {
+    end: propOrDefault(c.endDate, q.position.end, ['max', 'target']) as number,
+    start: propOrDefault(c.startDate, q.position.start, ['min', 'target']) as number,
+  };
+};
 
 export const atomicToPotentiality = (config: IConfig) => (query: IQuery): IPotentiality[] => {
   const duration = atomicToDuration(query) as ITimeDurationInternal;
-  const place = atomicToChildren(config)(query);
+  const place = atomicToChildren(config, query);
   const queryId = query.id;
   return [
-    { isSplittable: query.splittable, places: [place], duration, queryId, pressure: -1, potentialId: 0 },
+    {
+      duration,
+      isSplittable: query.splittable,
+      places: [place],
+      potentialId: 0,
+      pressure: -1,
+      queryId,
+    },
   ];
 };

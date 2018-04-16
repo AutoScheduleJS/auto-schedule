@@ -495,7 +495,7 @@ test('will work when provider potential has multiple places', t => {
     Q.queryFactory(
       Q.id(1),
       Q.name('consumer'),
-      Q.positionHelper(Q.duration(4, 2), Q.start(45, 1), Q.end(49, 5)),
+      Q.positionHelper(Q.duration(4, 2), Q.start(45), Q.end(49)),
       Q.transformsHelper([Q.need(false, 'col', { test: 'toto' }, 1, '1')], [], [])
     ),
     Q.queryFactory(
