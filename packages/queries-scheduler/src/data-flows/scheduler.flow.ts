@@ -20,10 +20,10 @@ import {
 import {
   atomicToPotentiality,
   linkToMask,
-  // mapToHourRange,
-  // mapToMonthRange,
-  // mapToTimeRestriction,
-  // mapToWeekdayRange,
+  mapToHourRange,
+  mapToMonthRange,
+  mapToTimeRestriction,
+  mapToWeekdayRange,
 } from '../data-flows/queries.flow';
 
 import { IConfig } from '../data-structures/config.interface';
@@ -322,16 +322,20 @@ const defaultMask = (config: IConfig): IRange[] => [
   },
 ];
 
-const queryToMask = R.curry((config: IConfig, _: IQuery): IRange[] => {
-  return defaultMask(config);
+const queryToMask = R.curry((config: IConfig, query: IQuery): IRange[] => {
+  return timeRestToMask(config, query);
 });
 
-// const timeRestToMask = (config: IConfig, query: IGoalQuery): IRange[] => {
-//   const timeRestrictions = query.timeRestrictions || {};
-//   const maskPipeline = R.pipe(
-//     mapToTimeRestriction(timeRestrictions.month, mapToMonthRange),
-//     mapToTimeRestriction(timeRestrictions.weekday, mapToWeekdayRange),
-//     mapToTimeRestriction(timeRestrictions.hour, mapToHourRange)
-//   );
-//   return maskPipeline([{ start: config.startDate, end: config.endDate }]);
-// };
+const timeRestToMask = (config: IConfig, query: IQuery): IRange[] => {
+  const configMask = defaultMask(config);
+  if (!query.timeRestrictions) {
+    return configMask
+  }
+  const timeRestrictions = query.timeRestrictions;
+  const maskPipeline = R.pipe(
+    mapToTimeRestriction(timeRestrictions.month, mapToMonthRange),
+    mapToTimeRestriction(timeRestrictions.weekday, mapToWeekdayRange),
+    mapToTimeRestriction(timeRestrictions.hour, mapToHourRange)
+  );
+  return maskPipeline(configMask);
+};
