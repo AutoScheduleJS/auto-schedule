@@ -32,11 +32,11 @@ import { IPotentiality } from '../data-structures/potentiality.interface';
 import { IPressureChunk } from '../data-structures/pressure-chunk.interface';
 import { IRange } from '../data-structures/range.interface';
 
+import { getMax } from './util.flow';
+
 type IQuery = IQueryInternal;
 
 const sortByStart = R.sortBy<IMaterial>(R.prop('start'));
-const getMax = <T>(prop: keyof T, list: ReadonlyArray<T>): T =>
-  R.reduce(R.maxBy(R.prop(prop) as (n: any) => number), list[0], list);
 
 export const queriesToPipeline$ = (config: IConfig) => (stateManager: stateManagerType) => (
   queries: ReadonlyArray<IQuery>
@@ -209,7 +209,7 @@ const manageMaterials = (
       const allMats = [...materials, ...mats];
       return matPotentialsBuilder(newPotentials, allMats).filter(potIsNotPlaced(allMats));
     },
-    emitPressureChunks(pressureChunk$, computePressureChunks(config, newPotentials)),
+    emitPressureChunks(pressureChunk$, computePressureChunks(config, newPotentials, toPlace)),
     error$
   );
   addMatsFn(result);

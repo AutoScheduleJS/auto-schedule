@@ -14,6 +14,8 @@ import { IMaterial } from '../data-structures/material.interface';
 import { IPotentiality } from '../data-structures/potentiality.interface';
 import { IRange } from '../data-structures/range.interface';
 
+import { propOrDefault } from './util.flow';
+
 type IQuery = IQueryInternal;
 type maskFn = (tm: IRange) => IRange[];
 type mapRange = (r: IRange[], tm: IRange) => IRange[];
@@ -142,18 +144,6 @@ export const linkToMask = (materials: ReadonlyArray<IMaterial>, config: IConfig)
         .reduce((a, b) => unify(a, b), []);
     })
     .reduce((a, b) => intersect(a, b));
-};
-
-const propOrDefault = <K>(
-  defaultValue: K[keyof K],
-  obj: K | undefined,
-  propToCheck: Array<keyof K>
-): K[keyof K] => {
-  if (obj == null) {
-    return defaultValue;
-  }
-  const resultProp = propToCheck.find(prop => obj[prop] != null);
-  return resultProp ? obj[resultProp] : defaultValue;
 };
 
 const atomicToChildren = (c: IConfig, q: IQuery) => {

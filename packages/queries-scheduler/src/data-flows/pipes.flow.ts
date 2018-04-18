@@ -15,7 +15,7 @@ import { IPressureChunk } from '../data-structures/pressure-chunk.interface';
 import { IPressureChunkPoint, IPressurePoint } from '../data-structures/pressure-point.interface';
 import { IRange } from '../data-structures/range.interface';
 
-const asymptotTo = (limit: number) => (value: number) => value / (value + 1) * limit;
+import { areSameNumber, asymptotTo, fillLimitedArray, mean } from './util.flow';
 
 const computePressureWithSpace = (p: IPotentiality, space: number): number => {
   const min = p.duration.min / space;
@@ -35,7 +35,8 @@ const sortByPressure = R.sortBy<IPressureChunk>(R.prop('pressure'));
 
 export const computePressureChunks = (
   config: IConfig,
-  potentialities: IPotentiality[]
+  potentialities: IPotentiality[],
+  toPlace: IPotentiality
 ): IPressureChunk[] => {
   const [first, ...pressurePoints] = reducePressurePoints([
     { time: config.startDate, pressureDiff: 0 },
