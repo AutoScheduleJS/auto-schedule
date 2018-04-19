@@ -4,17 +4,16 @@ import {
   ITimeDurationInternal,
   ITimeRestriction,
   RestrictionCondition,
+  IQueryPositionInternal,
 } from '@autoschedule/queries-fn';
 import { complement, intersect, unify } from 'intervals-fn';
 import * as moment from 'moment';
 import * as R from 'ramda';
-
 import { IConfig } from '../data-structures/config.interface';
 import { IMaterial } from '../data-structures/material.interface';
 import { IPotentiality } from '../data-structures/potentiality.interface';
-import { IRange } from '../data-structures/range.interface';
-
-import { propOrDefault } from './util.flow';
+import { IDurRange, IRange } from '../data-structures/range.interface';
+import { propOrDefault } from './util.flow';
 
 type IQuery = IQueryInternal;
 type maskFn = (tm: IRange) => IRange[];
@@ -146,22 +145,44 @@ export const linkToMask = (materials: ReadonlyArray<IMaterial>, config: IConfig)
     .reduce((a, b) => intersect(a, b));
 };
 
-const atomicToChildren = (c: IConfig, q: IQuery) => {
+const getBoundRange = (target: number, boundKind: 'min' | 'max', tipKind: 'start' | 'end', pos: IQueryPositionInternal): IDurRange => {
+  const start = propOrDefault(target, pos[tipKind], [boundKind]) as number;
+  const end = target + 1;
   return {
-    end: propOrDefault(c.endDate, q.position.end, ['max', 'target']) as number,
-    start: propOrDefault(c.startDate, q.position.start, ['min', 'target']) as number,
-  };
+    duration: end - start,
+    end,
+    start,
+    tipKind,
+  }
+}
+
+/**
+ * start max/end min: not used for determining place. Constraint check at pressure computation
+ * start range: [startMin | c.startDate, startMax | c.endDate]
+ * end range: [endMin | c.endtDate, endtMax | c.endDate]
+ * target: [startTarget | startRange.start, endTarget | endRange.end]
+ */
+const atomicToChildren = (c: IConfig, q: IQuery): IDurRange[] => {
+  const end = propOrDefault(c.endDate, q.position.end, ['max']) as number;
+  const start = propOrDefault(c.startDate, q.position.start, ['min']) as number;
+
+  // return {
+  //   end,
+  //   start,
+  //   targetEnd: propOrDefault(end, q.position.end, ['target']) as number,
+  //   targetStart: propOrDefault(start, q.position.start, ['target']) as number,
+  // };
 };
 
 export const atomicToPotentiality = (config: IConfig) => (query: IQuery): IPotentiality[] => {
   const duration = atomicToDuration(query) as ITimeDurationInternal;
-  const place = atomicToChildren(config, query);
+  const places = atomicToChildren(config, query);
   const queryId = query.id;
   return [
     {
       duration,
       isSplittable: query.splittable,
-      places: [place],
+      places,
       potentialId: 0,
       pressure: -1,
       queryId,

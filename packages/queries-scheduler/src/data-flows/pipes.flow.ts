@@ -31,8 +31,18 @@ export const computePressure = (p: IPotentiality): number => {
 };
 
 const sortByTime = R.sortBy<IPressurePoint>(R.prop('time'));
-const sortByPressure = R.sortBy<IPressureChunk>(R.prop('pressure'));
 
+const chunkToMean = (chunk: IPressureChunk) => mean(chunk.pressure.start, chunk.pressure.end);
+const sortByPressure = (chunks: IPressureChunk[]) => chunks.sort((a, b) => chunkToMean(a) - chunkToMean(b));
+
+/**
+ * TODO: use advanced pressure computation with [0-1] min/max/target
+ * current representation: ____5____3___-5_____-3___
+ * goal representation   : _{tend: a, p: 0}___{p:5, id: a}___
+ * change place representation ? use 2D range and convert to 1DRange when needed
+ * when placing potential: own pressure chunk should be the inverse of others
+ * need paper reflection
+ */
 export const computePressureChunks = (
   config: IConfig,
   potentialities: IPotentiality[],
@@ -97,7 +107,7 @@ export const updatePotentialsPressure = (
     R.pipe(
       (p: IPotentiality) => ({
         ...p,
-        places: masks.reduce((a, b) => intersect(a, b), p.places),
+        places: masks.reduce((a, b) => intersect(b, a), p.places),
       }),
       (p: IPotentiality) => ({
         ...p,
@@ -109,10 +119,6 @@ export const updatePotentialsPressure = (
       (p: IPotentiality) => ({ ...p, pressure: computePressure(p) })
     )
   );
-};
-
-const fillLimitedArray = <T>(limit: number) => (arr: T[], value: T): T[] => {
-  return arr.length < limit ? [...arr, value] : [...R.drop(1, arr), value];
 };
 
 const isProgressing = (progress: number[]): boolean => {
@@ -168,9 +174,7 @@ const findMaxFinitePlacement = (
   return materials;
 };
 
-const areSameNumber = (minDiff: number) => (avg1: number, avg2: number): boolean => {
-  return Object.is(avg1, avg2) || Math.abs(avg1 - avg2) < minDiff;
-};
+
 
 export const materializePotentiality = (
   toPlace: IPotentiality,

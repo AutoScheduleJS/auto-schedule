@@ -1,5 +1,8 @@
 import { IRange } from './range.interface';
 
 export interface IPressureChunk extends IRange {
-  readonly pressure: number;
+  /**
+   * start/end pressure correspond to pressure at start/end time
+   */
+  readonly pressure: IRange;
 }
