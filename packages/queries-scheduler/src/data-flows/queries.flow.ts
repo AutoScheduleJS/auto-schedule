@@ -4,7 +4,6 @@ import {
   ITimeDurationInternal,
   ITimeRestriction,
   RestrictionCondition,
-  IQueryPositionInternal,
 } from '@autoschedule/queries-fn';
 import { complement, intersect, unify } from 'intervals-fn';
 import * as moment from 'moment';
@@ -12,7 +11,7 @@ import * as R from 'ramda';
 import { IConfig } from '../data-structures/config.interface';
 import { IMaterial } from '../data-structures/material.interface';
 import { IPotentiality } from '../data-structures/potentiality.interface';
-import { IDurRange, IRange } from '../data-structures/range.interface';
+import { IPotRange, IRange } from '../data-structures/range.interface';
 import { propOrDefault } from './util.flow';
 
 type IQuery = IQueryInternal;
@@ -145,33 +144,34 @@ export const linkToMask = (materials: ReadonlyArray<IMaterial>, config: IConfig)
     .reduce((a, b) => intersect(a, b));
 };
 
-const getBoundRange = (target: number, boundKind: 'min' | 'max', tipKind: 'start' | 'end', pos: IQueryPositionInternal): IDurRange => {
-  const start = propOrDefault(target, pos[tipKind], [boundKind]) as number;
-  const end = target + 1;
-  return {
-    duration: end - start,
-    end,
-    start,
-    tipKind,
-  }
-}
-
 /**
  * start max/end min: not used for determining place. Constraint check at pressure computation
  * start range: [startMin | c.startDate, startMax | c.endDate]
- * end range: [endMin | c.endtDate, endtMax | c.endDate]
+ * end range: [endMin | c.startDate, endtMax | c.endDate]
  * target: [startTarget | startRange.start, endTarget | endRange.end]
  */
-const atomicToChildren = (c: IConfig, q: IQuery): IDurRange[] => {
-  const end = propOrDefault(c.endDate, q.position.end, ['max']) as number;
-  const start = propOrDefault(c.startDate, q.position.start, ['min']) as number;
-
-  // return {
-  //   end,
-  //   start,
-  //   targetEnd: propOrDefault(end, q.position.end, ['target']) as number,
-  //   targetStart: propOrDefault(start, q.position.start, ['target']) as number,
-  // };
+const atomicToChildren = (c: IConfig, q: IQuery): IPotRange[] => {
+  const minDuration = q.position.duration.min;
+  const endRange: IPotRange = {
+    end: propOrDefault(c.endDate, q.position.end, ['max']) as number,
+    kind: 'end',
+    start: propOrDefault(c.startDate, q.position.end, ['min']) as number,
+  };
+  const startRange: IPotRange = {
+    end: propOrDefault(c.endDate, q.position.start, ['max']) as number,
+    kind: 'end',
+    start: propOrDefault(c.startDate, q.position.start, ['min']) as number,
+  };
+  const targetRange: IPotRange = {
+    end: propOrDefault(startRange.start, q.position.start, ['target']) as number,
+    kind: 'target',
+    start: propOrDefault(endRange.end, q.position.end, ['target']) as number,
+  }
+  return [
+    {...startRange, end: Math.min(targetRange.end - minDuration, startRange.end) },
+    targetRange,
+    {...endRange, start: Math.max(targetRange.start + minDuration, endRange.start) }
+  ];
 };
 
 export const atomicToPotentiality = (config: IConfig) => (query: IQuery): IPotentiality[] => {

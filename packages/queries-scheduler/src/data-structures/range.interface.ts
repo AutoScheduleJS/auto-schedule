@@ -3,7 +3,6 @@ export interface IRange {
   readonly end: number;
 }
 
-export interface IDurRange extends IRange {
-  readonly duration: number;
-  readonly tipKind: 'start' | 'end' | 'target';
+export interface IPotRange extends IRange {
+  readonly kind: 'start' | 'end' | 'target';
 }

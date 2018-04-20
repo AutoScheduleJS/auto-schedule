@@ -25,15 +25,19 @@ const computePressureWithSpace = (p: IPotentiality, space: number): number => {
   return min + asymptotTo(1 - min)(p.duration.target / space);
 };
 
+/**
+ * How to compute pressure ? start/end/target or only target
+ */
 export const computePressure = (p: IPotentiality): number => {
-  const space = R.sum(p.places.map(c => c.end - c.start));
+  const space = R.sum(p.places.filter(c => c.kind === 'target').map(c => c.end - c.start));
   return computePressureWithSpace(p, space);
 };
 
 const sortByTime = R.sortBy<IPressurePoint>(R.prop('time'));
 
-const chunkToMean = (chunk: IPressureChunk) => mean(chunk.pressure.start, chunk.pressure.end);
-const sortByPressure = (chunks: IPressureChunk[]) => chunks.sort((a, b) => chunkToMean(a) - chunkToMean(b));
+const chunkToMean = (chunk: IPressureChunk) => mean(chunk.pressure);
+const sortByPressure = (chunks: IPressureChunk[]) =>
+  chunks.sort((a, b) => chunkToMean(a) - chunkToMean(b));
 
 /**
  * TODO: use advanced pressure computation with [0-1] min/max/target
@@ -173,8 +177,6 @@ const findMaxFinitePlacement = (
   }
   return materials;
 };
-
-
 
 export const materializePotentiality = (
   toPlace: IPotentiality,
