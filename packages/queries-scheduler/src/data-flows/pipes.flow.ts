@@ -46,11 +46,11 @@ const sortByPressure = (chunks: IPressureChunk[]) =>
  * change place representation ? use 2D range and convert to 1DRange when needed
  * when placing potential: own pressure chunk should be the inverse of others
  * need paper reflection
+ * With range for start/end, we lose the target information.
  */
 export const computePressureChunks = (
   config: IConfig,
-  potentialities: IPotentiality[],
-  toPlace: IPotentiality
+  potentialities: IPotentiality[]
 ): IPressureChunk[] => {
   const [first, ...pressurePoints] = reducePressurePoints([
     { time: config.startDate, pressureDiff: 0 },
@@ -184,6 +184,7 @@ export const materializePotentiality = (
   pressure: IPressureChunk[],
   error$: BehaviorSubject<any>
 ): IMaterial[] => {
+  debugger;
   const minMaterials = simulatePlacement(potToSimul('min', toPlace), pressure);
   const maxMaterials = simulatePlacement(potToSimul('target', toPlace), pressure);
   if (!minMaterials.length && !maxMaterials.length) {
@@ -323,6 +324,9 @@ const placeSplittable = (toPlace: IPotentialitySimul, pressure: IPressureChunk[]
   );
 };
 
+/**
+ * TODO: Only use target places
+ */
 const simulatePlacement = (
   toPlace: IPotentialitySimul,
   pressure: IPressureChunk[]

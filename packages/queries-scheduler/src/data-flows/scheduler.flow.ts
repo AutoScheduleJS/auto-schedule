@@ -52,6 +52,7 @@ export const queriesToPipeline$ = (config: IConfig) => (stateManager: stateManag
 };
 
 const valueToError = (values: any) => {
+  debugger;
   return new Error(`${values[0]}`);
 };
 
@@ -209,7 +210,7 @@ const manageMaterials = (
       const allMats = [...materials, ...mats];
       return matPotentialsBuilder(newPotentials, allMats).filter(potIsNotPlaced(allMats));
     },
-    emitPressureChunks(pressureChunk$, computePressureChunks(config, newPotentials, toPlace)),
+    emitPressureChunks(pressureChunk$, computePressureChunks(config, newPotentials)),
     error$
   );
   addMatsFn(result);
