@@ -31,6 +31,8 @@ operations:
 - providers handle is complex. Use priority list. Can cause side-effect conflict. How to go back to the source of conflict ? How to switch from 1st priority to another ? Simulation with satisfaction threshold for all materials ? heavy cost (recursive and exponential, due to provider sub-dependance to other providers).
 - Agents -> queries ; conflict-resolver (error): query -> agent ; manage agents as a stream
 
+Handle min/max from TimeBoundary: how to define pressure chunk to magnet placement at target location ? This is not trivial.
+
 when the stream complete without error, it should be the final timeline.
 
 schedule (tasks (materials)):
