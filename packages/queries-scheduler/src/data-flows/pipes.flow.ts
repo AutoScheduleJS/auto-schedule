@@ -184,7 +184,6 @@ export const materializePotentiality = (
   pressure: IPressureChunk[],
   error$: BehaviorSubject<any>
 ): IMaterial[] => {
-  debugger;
   const minMaterials = simulatePlacement(potToSimul('min', toPlace), pressure);
   const maxMaterials = simulatePlacement(potToSimul('target', toPlace), pressure);
   if (!minMaterials.length && !maxMaterials.length) {

@@ -1,6 +1,8 @@
 import * as Q from '@autoschedule/queries-fn';
-import test from 'ava';
-
+import test, { TestContext } from 'ava';
+import { IConfig } from '../data-structures/config.interface';
+import { IMaterial } from '../data-structures/material.interface';
+import { IPotRange, IRange } from '../data-structures/range.interface';
 import {
   atomicToPotentiality,
   linkToMask,
@@ -10,8 +12,23 @@ import {
   mapToWeekdayRange,
 } from './queries.flow';
 
-import { IConfig } from '../data-structures/config.interface';
-import { IMaterial } from '../data-structures/material.interface';
+type SRange = [number, number];
+const testPlace = (
+  t: TestContext,
+  places: ReadonlyArray<IPotRange>,
+  expected: [SRange, SRange, SRange]
+) => {
+  const sortRules = (p: IPotRange) => (p.kind === 'start' ? -1 : p.kind === 'end' ? 1 : 0);
+  const sortedPlaces = [...places].sort((p1, p2) => {
+    const p1Sort = sortRules(p1);
+    return p1Sort !== 0 ? p1Sort : sortRules(p2) * -1;
+  });
+  t.is(places.length, 3);
+  sortedPlaces.forEach((place, i) => {
+    t.is(place.end, expected[i][1], `for: ${i}`);
+    t.is(place.start, expected[i][0], `for: ${i}`);
+  });
+};
 
 test('will map nothing when no timeRestrictions', t => {
   const start = new Date().setHours(0, 0, 0, 0);
@@ -104,28 +121,52 @@ test('will map from month timeRestrictions when overlapping range', t => {
 test('will convert atomic to potentiality (start, duration)', t => {
   const config: IConfig = { startDate: 0, endDate: 10 };
   const atomic: Q.IQueryInternal = Q.queryFactory(Q.positionHelper(Q.start(5), Q.duration(1)));
-  const pot = atomicToPotentiality(config)(atomic);
+  const pots = atomicToPotentiality(config)(atomic);
 
-  t.is(pot.length, 1);
-  t.false(pot[0].isSplittable);
-  t.is(pot[0].places.length, 1);
-  t.is(pot[0].places[0].start, 5);
-  t.is(pot[0].places[0].end, 10);
-  t.is(pot[0].duration.target, 1);
+  t.is(pots.length, 1);
+  t.false(pots[0].isSplittable);
+  testPlace(t, pots[0].places, [[5, 5], [5, 10], [6, 10]]);
+  t.is(pots[0].duration.target, 1);
 });
 
 test('will convert atomic to potentiality (start, end)', t => {
   const config: IConfig = { startDate: 0, endDate: 10 };
   const atomic: Q.IQueryInternal = Q.queryFactory(Q.positionHelper(Q.start(5), Q.end(6)));
-  const pot = atomicToPotentiality(config)(atomic);
+  const pots = atomicToPotentiality(config)(atomic);
 
-  t.is(pot.length, 1);
-  t.false(pot[0].isSplittable);
-  t.is(pot[0].places.length, 1);
-  t.is(pot[0].places[0].start, 5);
-  t.is(pot[0].places[0].end, 6);
-  t.is(pot[0].duration.target, 1);
-  t.is(pot[0].duration.min, 1);
+  t.is(pots.length, 1);
+  t.false(pots[0].isSplittable);
+  testPlace(t, pots[0].places, [[5, 5], [5, 6], [6, 6]]);
+  t.is(pots[0].duration.target, 1);
+  t.is(pots[0].duration.min, 1);
+});
+
+test('will convert and handle min/max without target', t => {
+  const config: IConfig = { startDate: 0, endDate: 10 };
+  const atomic: Q.IQueryInternal = Q.queryFactory(
+    Q.positionHelper(Q.start(undefined, 2, 6), Q.end(undefined, 4, 9), Q.duration(2, 1))
+  );
+  const pots = atomicToPotentiality(config)(atomic);
+
+  t.is(pots.length, 1);
+  t.false(pots[0].isSplittable);
+  testPlace(t, pots[0].places, [[2, 6], [2, 9], [4, 9]]);
+  t.is(pots[0].duration.target, 2);
+  t.is(pots[0].duration.min, 1);
+});
+
+test('will convert with minimal start/end', t => {
+  const config: IConfig = { startDate: 0, endDate: 10 };
+  const atomic: Q.IQueryInternal = Q.queryFactory(
+    Q.positionHelper(Q.start(undefined, undefined, 4), Q.end(undefined, 6, undefined))
+  );
+  const pots = atomicToPotentiality(config)(atomic);
+
+  t.is(pots.length, 1);
+  t.false(pots[0].isSplittable);
+  testPlace(t, pots[0].places, [[0, 4], [0, 10], [6, 10]]);
+  t.is(pots[0].duration.target, 2);
+  t.is(pots[0].duration.min, 2);
 });
 
 test('will link to mask (one material) end', t => {
@@ -249,4 +290,3 @@ test('will link to mask (multiple links) end', t => {
   t.is(result[0].end, 34);
   t.is(result[0].start, 32);
 });
-

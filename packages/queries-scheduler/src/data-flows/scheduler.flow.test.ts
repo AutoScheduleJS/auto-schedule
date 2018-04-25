@@ -466,7 +466,7 @@ test('will handle empty need search', t => {
   );
 });
 
-test.only('will correctly link queries', t => {
+test('will correctly link queries', t => {
   const config: IConfig = { endDate: 50, startDate: 0 };
   const queries: Q.IQueryInternal[] = [
     Q.queryFactory(

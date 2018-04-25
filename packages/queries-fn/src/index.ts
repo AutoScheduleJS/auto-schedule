@@ -59,7 +59,7 @@ export const position = (
     const min = pos.duration.min
       ? pos.duration.min
       : pos.start && pos.start.max && pos.end && pos.end.min
-        ? pos.end.min - pos.start.max
+        ? Math.min(pos.end.min - pos.start.max, 0)
         : pos.duration.target;
     return {
       position: {
@@ -74,8 +74,8 @@ export const position = (
     const endMin = isEndTimeTargetTimeBoundary(pos.end) ? pos.end.target : pos.end.min;
     const startMax = isStartTimeTargetTimeBoundary(pos.start) ? pos.start.target : pos.start.max;
     const dur: internal.ITimeDurationInternal = {
-      min: (pos.end.min || endMin) - (pos.start.max || startMax),
-      target: endMin - startMax,
+      min: Math.min((pos.end.min || endMin) - (pos.start.max || startMax), 0),
+      target: Math.min(endMin - startMax, 0),
     };
     return { position: { ...pos, duration: dur } };
   }
@@ -103,7 +103,7 @@ export const durationInternal = (
 /* tslint:disable:no-object-literal-type-assertion */
 const tb = <T extends 'start' | 'end'>(t: T) => (target?: number, min?: number, max?: number) => {
   return {
-    [t]: { target, min, max },
+    [t]: { target, min: min ? min : target, max: max ? max : target },
   } as Record<T, client.ITimeBoundary>;
 };
 /* tslint:enable:no-object-literal-type-assertion */
@@ -111,6 +111,9 @@ const tb = <T extends 'start' | 'end'>(t: T) => (target?: number, min?: number, 
 export const start = tb('start');
 export const end = tb('end');
 
+/**
+ * When using start/end with end.min < start.max, it is recommanded to define a minimal duration
+ */
 export const positionHelper = (
   ...factories: Array<Partial<client.IQueryPosition>>
 ): Record<'position', internal.IQueryPositionInternal> => {

@@ -159,13 +159,13 @@ const atomicToChildren = (c: IConfig, q: IQuery): IPotRange[] => {
   };
   const startRange: IPotRange = {
     end: propOrDefault(c.endDate, q.position.start, ['max']) as number,
-    kind: 'end',
+    kind: 'start',
     start: propOrDefault(c.startDate, q.position.start, ['min']) as number,
   };
   const targetRange: IPotRange = {
-    end: propOrDefault(startRange.start, q.position.start, ['target']) as number,
+    end: propOrDefault(endRange.end, q.position.end, ['target']) as number,
     kind: 'target',
-    start: propOrDefault(endRange.end, q.position.end, ['target']) as number,
+    start: propOrDefault(startRange.start, q.position.start, ['target']) as number,
   }
   return [
     {...startRange, end: Math.min(targetRange.end - minDuration, startRange.end) },

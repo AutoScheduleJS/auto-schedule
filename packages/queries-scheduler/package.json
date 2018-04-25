@@ -7,10 +7,14 @@
   "types": "es/index.d.ts",
   "scripts": {
     "build:test": "tsc -p tsconfig.build.json",
-    "ava": "ava build/**/*.test.js",
-    "test": "tslint -p ./ && npm run build:test && nyc --reporter=lcov npm run ava",
-    "test:codecov": "tslint -p ./ && npm run build:test && nyc npm run ava",
-    "prepare": "npm run build:test && npm run build:test -- -m es6 --outDir es"
+    "ava": "ava",
+    "ava:all": "ava build/**/*.test.js",
+    "test": "tslint -p ./ && npm run build:test && nyc --reporter=lcov npm run ava:all",
+    "test:codecov": "tslint -p ./ && npm run build:test && nyc npm run ava:all",
+    "prepare": "npm run build:test && npm run build:test -- -m es6 --outDir es",
+    "watch:ts": "npm run build:test -- -w",
+    "watch:ava": "npm run ava:all -- -w",
+    "watch:test": "concurrently -k -p \"[{name}]\" -n \"TypeScript,Ava\" -c \"blue.bold,magenta.bold\" \"npm run watch:ts\" \"npm run watch:ava\""
   },
   "repository": {
     "type": "git",
