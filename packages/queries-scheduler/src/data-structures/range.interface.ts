@@ -4,5 +4,5 @@ export interface IRange {
 }
 
 export interface IPotRange extends IRange {
-  readonly kind: 'start' | 'end' | 'target';
+  readonly kind: 'start-after' | 'start-before' | 'end-after' | 'end-before' | 'start' | 'end';
 }

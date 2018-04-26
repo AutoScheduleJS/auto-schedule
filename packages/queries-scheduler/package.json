@@ -34,8 +34,6 @@
     "url": "https://github.com/AutoScheduleJS/queries-scheduler/issues"
   },
   "homepage": "https://github.com/AutoScheduleJS/queries-scheduler#readme",
-  "dependencies": {
-  },
   "devDependencies": {
     "@autoschedule/queries-fn": "^6.1.0",
     "@autoschedule/userstate-manager": "^3.0.2",
@@ -43,7 +41,7 @@
     "ava": "^0.25.0",
     "concurrently": "^3.5.1",
     "esm": "^3.0.17",
-    "intervals-fn": "^2.7.0",
+    "intervals-fn": "^2.8.2",
     "moment": "^2.22.0",
     "nyc": "^11.6.0",
     "ramda": "^0.25.0",
@@ -56,8 +54,8 @@
     }
   },
   "ava": {
-		"require": [
-			"esm"
-		]
-	}
+    "require": [
+      "esm"
+    ]
+  }
 }

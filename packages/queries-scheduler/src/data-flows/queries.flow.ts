@@ -5,7 +5,7 @@ import {
   ITimeRestriction,
   RestrictionCondition,
 } from '@autoschedule/queries-fn';
-import { complement, intersect, unify } from 'intervals-fn';
+import { complement, intersect, split, unify } from 'intervals-fn';
 import * as moment from 'moment';
 import * as R from 'ramda';
 import { IConfig } from '../data-structures/config.interface';
@@ -144,33 +144,34 @@ export const linkToMask = (materials: ReadonlyArray<IMaterial>, config: IConfig)
     .reduce((a, b) => intersect(a, b));
 };
 
-/**
- * start max/end min: not used for determining place. Constraint check at pressure computation
- * start range: [startMin | c.startDate, startMax | c.endDate]
- * end range: [endMin | c.startDate, endtMax | c.endDate]
- * target: [startTarget | startRange.start, endTarget | endRange.end]
- */
-const atomicToChildren = (c: IConfig, q: IQuery): IPotRange[] => {
-  const minDuration = q.position.duration.min;
-  const endRange: IPotRange = {
-    end: propOrDefault(c.endDate, q.position.end, ['max']) as number,
-    kind: 'end',
-    start: propOrDefault(c.startDate, q.position.end, ['min']) as number,
-  };
-  const startRange: IPotRange = {
-    end: propOrDefault(c.endDate, q.position.start, ['max']) as number,
-    kind: 'start',
-    start: propOrDefault(c.startDate, q.position.start, ['min']) as number,
-  };
-  const targetRange: IPotRange = {
-    end: propOrDefault(endRange.end, q.position.end, ['target']) as number,
-    kind: 'target',
-    start: propOrDefault(startRange.start, q.position.start, ['target']) as number,
+const specifyCorrectKind = (splitted: IPotRange[]): IPotRange[] => {
+  if (splitted.length === 1) {
+    return splitted;
   }
   return [
-    {...startRange, end: Math.min(targetRange.end - minDuration, startRange.end) },
-    targetRange,
-    {...endRange, start: Math.max(targetRange.start + minDuration, endRange.start) }
+    { ...splitted[0], kind: `${splitted[0].kind}-before` } as any,
+    { ...splitted[1], kind: `${splitted[1].kind}-after` },
+  ];
+};
+
+const atomicToChildren = (c: IConfig, q: IQuery): IPotRange[] => {
+  const endRange: IPotRange[] = specifyCorrectKind(
+    split<IPotRange>(q.position.end && q.position.end.target ? [q.position.end.target] : [], {
+      end: propOrDefault(c.endDate, q.position.end, ['max']) as number,
+      kind: 'end',
+      start: propOrDefault(c.startDate, q.position.end, ['min']) as number,
+    })
+  );
+  const startRange: IPotRange[] = specifyCorrectKind(
+    split<IPotRange>(q.position.start && q.position.start.target ? [q.position.start.target] : [], {
+      end: propOrDefault(c.endDate, q.position.start, ['max']) as number,
+      kind: 'start',
+      start: propOrDefault(c.startDate, q.position.start, ['min']) as number,
+    })
+  );
+  return [
+    ...startRange,
+    ...endRange,
   ];
 };
 

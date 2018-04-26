@@ -11,23 +11,17 @@ import {
   mapToTimeRestriction,
   mapToWeekdayRange,
 } from './queries.flow';
+const testPlaces = (t: TestContext, places: ReadonlyArray<IPotRange>, expected: IPotRange[]) => {
+  t.true(places.length >= 2);
+  places.forEach((place, i) => {
+    t.is(place.end, expected[i].end, `for: ${i}`);
+    t.is(place.start, expected[i].start, `for: ${i}`);
+    t.is(place.kind, expected[i].kind, `for: ${i}`);
+  });
+};
 
-type SRange = [number, number];
-const testPlace = (
-  t: TestContext,
-  places: ReadonlyArray<IPotRange>,
-  expected: [SRange, SRange, SRange]
-) => {
-  const sortRules = (p: IPotRange) => (p.kind === 'start' ? -1 : p.kind === 'end' ? 1 : 0);
-  const sortedPlaces = [...places].sort((p1, p2) => {
-    const p1Sort = sortRules(p1);
-    return p1Sort !== 0 ? p1Sort : sortRules(p2) * -1;
-  });
-  t.is(places.length, 3);
-  sortedPlaces.forEach((place, i) => {
-    t.is(place.end, expected[i][1], `for: ${i}`);
-    t.is(place.start, expected[i][0], `for: ${i}`);
-  });
+const tinyTopotRange = (obj: { s: number; e: number; k: any }): IPotRange => {
+  return { start: obj.s, end: obj.e, kind: obj.k };
 };
 
 test('will map nothing when no timeRestrictions', t => {
@@ -125,7 +119,15 @@ test('will convert atomic to potentiality (start, duration)', t => {
 
   t.is(pots.length, 1);
   t.false(pots[0].isSplittable);
-  testPlace(t, pots[0].places, [[5, 5], [5, 10], [6, 10]]);
+  testPlaces(
+    t,
+    pots[0].places,
+    [
+      { s: 0, e: 5, k: 'start-before' },
+      { s: 5, e: 10, k: 'start-after' },
+      { s: 0, e: 10, k: 'end' }
+    ].map(tinyTopotRange)
+  );
   t.is(pots[0].duration.target, 1);
 });
 
@@ -136,7 +138,7 @@ test('will convert atomic to potentiality (start, end)', t => {
 
   t.is(pots.length, 1);
   t.false(pots[0].isSplittable);
-  testPlace(t, pots[0].places, [[5, 5], [5, 6], [6, 6]]);
+  testPlaces(t, pots[0].places, [[5, 5], [5, 6], [6, 6]]);
   t.is(pots[0].duration.target, 1);
   t.is(pots[0].duration.min, 1);
 });
@@ -150,7 +152,7 @@ test('will convert and handle min/max without target', t => {
 
   t.is(pots.length, 1);
   t.false(pots[0].isSplittable);
-  testPlace(t, pots[0].places, [[2, 6], [2, 9], [4, 9]]);
+  testPlaces(t, pots[0].places, [[2, 6], [2, 9], [4, 9]]);
   t.is(pots[0].duration.target, 2);
   t.is(pots[0].duration.min, 1);
 });
@@ -164,7 +166,7 @@ test('will convert with minimal start/end', t => {
 
   t.is(pots.length, 1);
   t.false(pots[0].isSplittable);
-  testPlace(t, pots[0].places, [[0, 4], [0, 10], [6, 10]]);
+  testPlaces(t, pots[0].places, [[0, 4], [0, 10], [6, 10]]);
   t.is(pots[0].duration.target, 2);
   t.is(pots[0].duration.min, 2);
 });
