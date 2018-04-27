@@ -1,3 +1,6 @@
+import { IConfig } from "../data-structures/config.interface";
+import { IRange } from "../data-structures/range.interface";
+
 export const asymptotTo = (limit: number) => (value: number) => value / (value + 1) * limit;
 
 export const mean = (...list: number[]) => list.reduce((a, b) => a + b) / list.length;
@@ -25,6 +28,13 @@ export const propOrDefault = <K>(
 export const maxBy = <T>(by: (a: T) => number) => (first: T, second: T): T => {
   return by(first) > by(second) ? first : second;
 };
+
+export const configToRange = (conf: IConfig): IRange => {
+  return {
+    end: conf.endDate,
+    start: conf.startDate
+  };
+}
 
 export const getProp = <T>(prop: keyof T) => (obj: T): T[keyof T] => obj[prop];
 

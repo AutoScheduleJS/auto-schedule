@@ -4,13 +4,16 @@ import { IConfig } from '../data-structures/config.interface';
 import { IMaterial } from '../data-structures/material.interface';
 import { IPotRange } from '../data-structures/range.interface';
 import {
-  atomicToPotentiality,
+  atomicToPlaces,
   linkToMask,
   mapToHourRange,
   mapToMonthRange,
   mapToTimeRestriction,
   mapToWeekdayRange,
+  queryToPotentiality,
 } from './queries.flow';
+import { configToRange } from './util.flow';
+
 const testPlaces = (t: TestContext, places: ReadonlyArray<IPotRange>, expected: IPotRange[]) => {
   t.true(places.length >= 2);
   places.forEach((place, i) => {
@@ -115,32 +118,35 @@ test('will map from month timeRestrictions when overlapping range', t => {
 test('will convert atomic to potentiality (start, duration)', t => {
   const config: IConfig = { startDate: 0, endDate: 10 };
   const atomic: Q.IQueryInternal = Q.queryFactory(Q.positionHelper(Q.start(5), Q.duration(1)));
-  const pots = atomicToPotentiality(config)(atomic);
-
-  t.is(pots.length, 1);
-  t.false(pots[0].isSplittable);
+  const pots = {
+    ...queryToPotentiality(atomic),
+    places: [atomicToPlaces(configToRange(config), atomic.position)],
+  };
+  t.false(pots.isSplittable);
   testPlaces(
     t,
-    pots[0].places[0],
+    pots.places[0],
     [
       { s: 0, e: 5, k: 'start-before' },
       { s: 5, e: 10, k: 'start-after' },
       { s: 0, e: 10, k: 'end' },
     ].map(tinyToPotRange)
   );
-  t.is(pots[0].duration.target, 1);
+  t.is(pots.duration.target, 1);
 });
 
 test('will convert atomic to potentiality (start, end)', t => {
   const config: IConfig = { startDate: 0, endDate: 10 };
   const atomic: Q.IQueryInternal = Q.queryFactory(Q.positionHelper(Q.start(5), Q.end(6)));
-  const pots = atomicToPotentiality(config)(atomic);
+  const pots = {
+    ...queryToPotentiality(atomic),
+    places: [atomicToPlaces(configToRange(config), atomic.position)],
+  };
 
-  t.is(pots.length, 1);
-  t.false(pots[0].isSplittable);
+  t.false(pots.isSplittable);
   testPlaces(
     t,
-    pots[0].places[0],
+    pots.places[0],
     [
       { s: 0, e: 5, k: 'start-before' },
       { s: 5, e: 10, k: 'start-after' },
@@ -148,8 +154,8 @@ test('will convert atomic to potentiality (start, end)', t => {
       { s: 6, e: 10, k: 'end-after' },
     ].map(tinyToPotRange)
   );
-  t.is(pots[0].duration.target, 1);
-  t.is(pots[0].duration.min, 1);
+  t.is(pots.duration.target, 1);
+  t.is(pots.duration.min, 1);
 });
 
 test('will convert and handle min/max without target', t => {
@@ -157,17 +163,19 @@ test('will convert and handle min/max without target', t => {
   const atomic: Q.IQueryInternal = Q.queryFactory(
     Q.positionHelper(Q.start(undefined, 2, 6), Q.end(undefined, 4, 9), Q.duration(2, 1))
   );
-  const pots = atomicToPotentiality(config)(atomic);
+  const pots = {
+    ...queryToPotentiality(atomic),
+    places: [atomicToPlaces(configToRange(config), atomic.position)],
+  };
 
-  t.is(pots.length, 1);
-  t.false(pots[0].isSplittable);
+  t.false(pots.isSplittable);
   testPlaces(
     t,
-    pots[0].places[0],
+    pots.places[0],
     [{ s: 2, e: 6, k: 'start' }, { s: 4, e: 9, k: 'end' }].map(tinyToPotRange)
   );
-  t.is(pots[0].duration.target, 2);
-  t.is(pots[0].duration.min, 1);
+  t.is(pots.duration.target, 2);
+  t.is(pots.duration.min, 1);
 });
 
 test('will convert with minimal start/end', t => {
@@ -175,17 +183,18 @@ test('will convert with minimal start/end', t => {
   const atomic: Q.IQueryInternal = Q.queryFactory(
     Q.positionHelper(Q.start(undefined, undefined, 4), Q.end(undefined, 6, undefined))
   );
-  const pots = atomicToPotentiality(config)(atomic);
-
-  t.is(pots.length, 1);
-  t.false(pots[0].isSplittable);
+  const pots = {
+    ...queryToPotentiality(atomic),
+    places: [atomicToPlaces(configToRange(config), atomic.position)],
+  };
+  t.false(pots.isSplittable);
   testPlaces(
     t,
-    pots[0].places[0],
+    pots.places[0],
     [{ s: 0, e: 4, k: 'start' }, { s: 6, e: 10, k: 'end' }].map(tinyToPotRange)
   );
-  t.is(pots[0].duration.target, 2);
-  t.is(pots[0].duration.min, 2);
+  t.is(pots.duration.target, 2);
+  t.is(pots.duration.min, 2);
 });
 
 test('will link to mask (one material) end', t => {

@@ -1,5 +1,6 @@
 import {
   IQueryInternal,
+  IQueryPositionDurationInternal,
   ITimeBoundary,
   ITimeDurationInternal,
   ITimeRestriction,
@@ -154,39 +155,36 @@ const specifyCorrectKind = (splitted: IPotRange[]): IPotRange[] => {
   ];
 };
 
-const atomicToChildren = (c: IConfig, q: IQuery): IPotRange[] => {
+export const atomicToPlaces = (
+  bound: IRange,
+  position: IQueryPositionDurationInternal
+): IPotRange[] => {
   const endRange: IPotRange[] = specifyCorrectKind(
-    split<IPotRange>(q.position.end && q.position.end.target ? [q.position.end.target] : [], {
-      end: propOrDefault(c.endDate, q.position.end, ['max']) as number,
+    split<IPotRange>(position.end && position.end.target ? [position.end.target] : [], {
+      end: propOrDefault(bound.end, position.end, ['max']) as number,
       kind: 'end',
-      start: propOrDefault(c.startDate, q.position.end, ['min']) as number,
+      start: propOrDefault(bound.start, position.end, ['min']) as number,
     })
   );
   const startRange: IPotRange[] = specifyCorrectKind(
-    split<IPotRange>(q.position.start && q.position.start.target ? [q.position.start.target] : [], {
-      end: propOrDefault(c.endDate, q.position.start, ['max']) as number,
+    split<IPotRange>(position.start && position.start.target ? [position.start.target] : [], {
+      end: propOrDefault(bound.end, position.start, ['max']) as number,
       kind: 'start',
-      start: propOrDefault(c.startDate, q.position.start, ['min']) as number,
+      start: propOrDefault(bound.start, position.start, ['min']) as number,
     })
   );
-  return [
-    ...startRange,
-    ...endRange,
-  ];
+  return [...startRange, ...endRange];
 };
 
-export const atomicToPotentiality = (config: IConfig) => (query: IQuery): IPotentiality[] => {
+export const queryToPotentiality = (query: IQuery): IPotentiality => {
   const duration = atomicToDuration(query) as ITimeDurationInternal;
-  const defaultPlaces = atomicToChildren(config, query);
   const queryId = query.id;
-  return [
-    {
-      duration,
-      isSplittable: query.splittable,
-      places: [defaultPlaces],
-      potentialId: 0,
-      pressure: -1,
-      queryId,
-    },
-  ];
+  return {
+    duration,
+    isSplittable: query.splittable,
+    places: [],
+    potentialId: 0,
+    pressure: -1,
+    queryId,
+  };
 };

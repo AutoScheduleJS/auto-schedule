@@ -1,8 +1,7 @@
-import { ITimeDurationInternal } from '@autoschedule/queries-fn';
+import { IQueryInternal, ITimeDurationInternal } from '@autoschedule/queries-fn';
 import { intersect, isDuring, isOverlapping, substract } from 'intervals-fn';
 import * as R from 'ramda';
 import { BehaviorSubject } from 'rxjs/BehaviorSubject';
-
 import { IConfig } from '../data-structures/config.interface';
 import { ConflictError } from '../data-structures/conflict.error';
 import { IMaterial } from '../data-structures/material.interface';
@@ -13,24 +12,45 @@ import {
 } from '../data-structures/potentiality.interface';
 import { IPressureChunk } from '../data-structures/pressure-chunk.interface';
 import { IPressureChunkPoint, IPressurePoint } from '../data-structures/pressure-point.interface';
-import { IRange } from '../data-structures/range.interface';
+import { IPotRange, IRange } from '../data-structures/range.interface';
+import { atomicToPlaces } from './queries.flow';
+import { areSameNumber, asymptotTo, configToRange, fillLimitedArray, mean } from './util.flow';
 
-import { areSameNumber, asymptotTo, fillLimitedArray, mean } from './util.flow';
-
-const computePressureWithSpace = (p: IPotentiality, space: number): number => {
-  const min = p.duration.min / space;
+const computePressureWithSpace = (duration: ITimeDurationInternal, space: number): number => {
+  const min = duration.min / space;
   if (min >= 1) {
     return min;
   }
-  return min + asymptotTo(1 - min)(p.duration.target / space);
+  return min + asymptotTo(1 - min)(duration.target / space);
+};
+
+export const placesToRanges = (places: ReadonlyArray<ReadonlyArray<IPotRange>>): IRange[] => {
+  return places.map(place => {
+    const points = place
+      .filter(c => ['start', 'end', 'start-before', 'end-after'].includes(c.kind))
+      .map(c => {
+        if (c.kind.startsWith('start')) {
+          return c.start;
+        }
+        return c.end;
+      })
+      .sort((a, b) => b - a);
+    return {
+      end: points[1],
+      start: points[0],
+    };
+  });
 };
 
 /**
  * How to compute pressure ? start/end/target or only target
  */
-export const computePressure = (p: IPotentiality): number => {
-  const space = R.sum(p.places.filter(c => c.kind === 'target').map(c => c.end - c.start));
-  return computePressureWithSpace(p, space);
+export const computePressure = (
+  duration: ITimeDurationInternal,
+  places: ReadonlyArray<ReadonlyArray<IPotRange>>
+): number => {
+  const space = R.sum(placesToRanges(places).map(bound => bound.end - bound.start));
+  return computePressureWithSpace(duration, space);
 };
 
 const sortByTime = R.sortBy<IPressurePoint>(R.prop('time'));
@@ -103,26 +123,25 @@ const potentialsToPressurePoint = (potentialities: IPotentiality[]): IPressurePo
 };
 
 export const updatePotentialsPressure = (
-  potentialities: IPotentiality[],
+  config: IConfig,
+  query: IQueryInternal,
+  potentiality: IPotentiality,
   materials: ReadonlyArray<IMaterial>,
   ...masks: IRange[][]
-): IPotentiality[] => {
-  return potentialities.map(
-    R.pipe(
-      (p: IPotentiality) => ({
-        ...p,
-        places: masks.reduce((a, b) => intersect(b, a), p.places),
-      }),
-      (p: IPotentiality) => ({
-        ...p,
-        places: substract(
-          p.places,
-          materials.filter(m => m.queryId !== p.queryId || m.materialId !== p.potentialId)
-        ),
-      }),
-      (p: IPotentiality) => ({ ...p, pressure: computePressure(p) })
+): IPotentiality => {
+  const boundaries = substract(
+    masks.reduce((a, b) => intersect(b, a), [configToRange(config)]),
+    materials.filter(
+      m => m.queryId !== potentiality.queryId || m.materialId !== potentiality.potentialId
     )
   );
+  const places = boundaries.map(bounds => atomicToPlaces(bounds, query.position));
+  const pressure = computePressure(potentiality.duration, places);
+  return {
+    ...potentiality,
+    places,
+    pressure,
+  };
 };
 
 const isProgressing = (progress: number[]): boolean => {
