@@ -59,7 +59,7 @@ export const position = (
     const min = pos.duration.min
       ? pos.duration.min
       : pos.start && pos.start.max && pos.end && pos.end.min
-        ? Math.min(pos.end.min - pos.start.max, 0)
+        ? Math.max(pos.end.min - pos.start.max, 0)
         : pos.duration.target;
     return {
       position: {
@@ -74,8 +74,8 @@ export const position = (
     const endMin = isEndTimeTargetTimeBoundary(pos.end) ? pos.end.target : pos.end.min;
     const startMax = isStartTimeTargetTimeBoundary(pos.start) ? pos.start.target : pos.start.max;
     const dur: internal.ITimeDurationInternal = {
-      min: Math.min((pos.end.min || endMin) - (pos.start.max || startMax), 0),
-      target: Math.min(endMin - startMax, 0),
+      min: Math.max((pos.end.min || endMin) - (pos.start.max || startMax), 0),
+      target: Math.max(endMin - startMax, 0),
     };
     return { position: { ...pos, duration: dur } };
   }
