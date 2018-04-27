@@ -5,7 +5,7 @@ export interface IPotentialityBase {
   readonly isSplittable: boolean;
   readonly queryId: number;
   readonly potentialId: number;
-  readonly places: ReadonlyArray<IPotRange>;
+  readonly places: ReadonlyArray<ReadonlyArray<IPotRange>>;
 }
 
 export interface IPotentiality extends IPotentialityBase {

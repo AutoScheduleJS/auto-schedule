@@ -2,7 +2,7 @@ import * as Q from '@autoschedule/queries-fn';
 import test, { TestContext } from 'ava';
 import { IConfig } from '../data-structures/config.interface';
 import { IMaterial } from '../data-structures/material.interface';
-import { IPotRange, IRange } from '../data-structures/range.interface';
+import { IPotRange } from '../data-structures/range.interface';
 import {
   atomicToPotentiality,
   linkToMask,
@@ -20,7 +20,7 @@ const testPlaces = (t: TestContext, places: ReadonlyArray<IPotRange>, expected: 
   });
 };
 
-const tinyTopotRange = (obj: { s: number; e: number; k: any }): IPotRange => {
+const tinyToPotRange = (obj: { s: number; e: number; k: any }): IPotRange => {
   return { start: obj.s, end: obj.e, kind: obj.k };
 };
 
@@ -121,12 +121,12 @@ test('will convert atomic to potentiality (start, duration)', t => {
   t.false(pots[0].isSplittable);
   testPlaces(
     t,
-    pots[0].places,
+    pots[0].places[0],
     [
       { s: 0, e: 5, k: 'start-before' },
       { s: 5, e: 10, k: 'start-after' },
-      { s: 0, e: 10, k: 'end' }
-    ].map(tinyTopotRange)
+      { s: 0, e: 10, k: 'end' },
+    ].map(tinyToPotRange)
   );
   t.is(pots[0].duration.target, 1);
 });
@@ -138,7 +138,16 @@ test('will convert atomic to potentiality (start, end)', t => {
 
   t.is(pots.length, 1);
   t.false(pots[0].isSplittable);
-  testPlaces(t, pots[0].places, [[5, 5], [5, 6], [6, 6]]);
+  testPlaces(
+    t,
+    pots[0].places[0],
+    [
+      { s: 0, e: 5, k: 'start-before' },
+      { s: 5, e: 10, k: 'start-after' },
+      { s: 0, e: 6, k: 'end-before' },
+      { s: 6, e: 10, k: 'end-after' },
+    ].map(tinyToPotRange)
+  );
   t.is(pots[0].duration.target, 1);
   t.is(pots[0].duration.min, 1);
 });
@@ -152,7 +161,11 @@ test('will convert and handle min/max without target', t => {
 
   t.is(pots.length, 1);
   t.false(pots[0].isSplittable);
-  testPlaces(t, pots[0].places, [[2, 6], [2, 9], [4, 9]]);
+  testPlaces(
+    t,
+    pots[0].places[0],
+    [{ s: 2, e: 6, k: 'start' }, { s: 4, e: 9, k: 'end' }].map(tinyToPotRange)
+  );
   t.is(pots[0].duration.target, 2);
   t.is(pots[0].duration.min, 1);
 });
@@ -166,7 +179,11 @@ test('will convert with minimal start/end', t => {
 
   t.is(pots.length, 1);
   t.false(pots[0].isSplittable);
-  testPlaces(t, pots[0].places, [[0, 4], [0, 10], [6, 10]]);
+  testPlaces(
+    t,
+    pots[0].places[0],
+    [{ s: 0, e: 4, k: 'start' }, { s: 6, e: 10, k: 'end' }].map(tinyToPotRange)
+  );
   t.is(pots[0].duration.target, 2);
   t.is(pots[0].duration.min, 2);
 });

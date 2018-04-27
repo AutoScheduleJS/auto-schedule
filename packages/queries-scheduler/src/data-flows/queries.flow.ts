@@ -177,13 +177,13 @@ const atomicToChildren = (c: IConfig, q: IQuery): IPotRange[] => {
 
 export const atomicToPotentiality = (config: IConfig) => (query: IQuery): IPotentiality[] => {
   const duration = atomicToDuration(query) as ITimeDurationInternal;
-  const places = atomicToChildren(config, query);
+  const defaultPlaces = atomicToChildren(config, query);
   const queryId = query.id;
   return [
     {
       duration,
       isSplittable: query.splittable,
-      places,
+      places: [defaultPlaces],
       potentialId: 0,
       pressure: -1,
       queryId,
