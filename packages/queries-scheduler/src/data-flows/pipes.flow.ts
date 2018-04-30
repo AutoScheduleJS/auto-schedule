@@ -60,13 +60,27 @@ const sortByPressure = (chunks: IPressureChunk[]) =>
   chunks.sort((a, b) => chunkToMean(a) - chunkToMean(b));
 
 /**
- * TODO: use advanced pressure computation with [0-1] min/max/target
- * current representation: ____5____3___-5_____-3___
- * goal representation   : _{tend: a, p: 0}___{p:5, id: a}___
- * change place representation ? use 2D range and convert to 1DRange when needed
- * when placing potential: own pressure chunk should be the inverse of others
- * need paper reflection
- * With range for start/end, we lose the target information.
+ * TODO: use IRange with pressureStart - pressureEnd
+ *    A   B   C    D   E
+ *          ______
+ * |_____|/|      |\|_____|
+ * push:         \
+ *                     \
+ * impact 3 pressureChunk: C, D, E
+ * with sortByStart, should only impact C.
+ *   A      B
+ * |   |       /|
+ * |___|/       |
+ * push:
+ *         \
+ *                   \
+ * impact 1 pressureChunk: B
+ * result in: (max 3 chunks, min 1 chunk)
+ * 1   2   3    4      5
+ * |   |   |____|      |
+ * |___|/  |    |\     |
+ * |   |   |    |     \|
+ * need to compute pressure at 3, 4, 5
  */
 export const computePressureChunks = (
   config: IConfig,
@@ -221,6 +235,15 @@ export const materializePotentiality = (
     return [];
   }
   return findMaxFinitePlacement(toPlace, minAvg, updatePP, pressure, error$);
+};
+
+
+export const computePressureArea = (pressureChunk: IPressureChunk): number => {
+  const A = { y: pressureChunk.pressureStart, x: pressureChunk.start };
+  const B = { y: pressureChunk.pressureEnd, x: pressureChunk.end };
+  const C = { x: pressureChunk.end };
+  const D = { x: pressureChunk.start };
+  return (A.x*B.y - A.y*B.x) - (B.y*C.x) + (D.x*A.y);
 };
 
 const getProportionalPressure = (
