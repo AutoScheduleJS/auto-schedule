@@ -16,12 +16,10 @@ import { IMaterial } from '../data-structures/material.interface';
 import { IPotentiality } from '../data-structures/potentiality.interface';
 import { IPressureChunk } from '../data-structures/pressure-chunk.interface';
 import { IRange } from '../data-structures/range.interface';
-import { getMax } from './util.flow';
+import { getMax, sortByStart } from './util.flow';
 
 
 type IQuery = IQueryInternal;
-
-const sortByStart = R.sortBy<IMaterial>(R.prop('start'));
 
 export const queriesToPipeline$ = (config: IConfig) => (stateManager: stateManagerType) => (
   queries: ReadonlyArray<IQuery>

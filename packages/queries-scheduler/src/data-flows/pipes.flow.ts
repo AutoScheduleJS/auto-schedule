@@ -1,5 +1,5 @@
 import { IQueryInternal, ITimeDurationInternal } from '@autoschedule/queries-fn';
-import { intersect, isDuring, isOverlapping, substract } from 'intervals-fn';
+import { intersect, isDuring, merge, substract } from 'intervals-fn';
 import * as R from 'ramda';
 import { BehaviorSubject } from 'rxjs/BehaviorSubject';
 import { IConfig } from '../data-structures/config.interface';
@@ -10,11 +10,19 @@ import {
   IPotentialityBase,
   IPotentialitySimul,
 } from '../data-structures/potentiality.interface';
-import { IPressureChunk } from '../data-structures/pressure-chunk.interface';
-import { IPressureChunkPoint, IPressurePoint } from '../data-structures/pressure-point.interface';
+import { IPressureChunk, IPressureChunkMerge } from '../data-structures/pressure-chunk.interface';
+import { IPressurePoint } from '../data-structures/pressure-point.interface';
 import { IPotRange, IRange } from '../data-structures/range.interface';
 import { atomicToPlaces } from './queries.flow';
-import { areSameNumber, asymptotTo, configToRange, fillLimitedArray, mean } from './util.flow';
+import {
+  areSameNumber,
+  asymptotTo,
+  configToRange,
+  fillLimitedArray,
+  getYfromStartEndLine,
+  mean,
+  sortByStart,
+} from './util.flow';
 
 const computePressureWithSpace = (duration: ITimeDurationInternal, space: number): number => {
   const min = duration.min / space;
@@ -24,10 +32,13 @@ const computePressureWithSpace = (duration: ITimeDurationInternal, space: number
   return min + asymptotTo(1 - min)(duration.target / space);
 };
 
+const filterPlaceForPressure = (place: IPotRange) =>
+  ['start', 'end', 'start-before', 'end-after'].includes(place.kind);
+
 export const placesToRanges = (places: ReadonlyArray<ReadonlyArray<IPotRange>>): IRange[] => {
   return places.map(place => {
     const points = place
-      .filter(c => ['start', 'end', 'start-before', 'end-after'].includes(c.kind))
+      .filter(filterPlaceForPressure)
       .map(c => {
         if (c.kind.startsWith('start')) {
           return c.start;
@@ -52,7 +63,6 @@ export const computePressure = (
   const space = R.sum(placesToRanges(places).map(bound => bound.end - bound.start));
   return computePressureWithSpace(duration, space);
 };
-
 const sortByTime = R.sortBy<IPressurePoint>(R.prop('time'));
 
 const chunkToMean = (chunk: IPressureChunk) => mean(chunk.pressure);
@@ -68,6 +78,7 @@ const sortByPressure = (chunks: IPressureChunk[]) =>
  *                     \
  * impact 3 pressureChunk: C, D, E
  * with sortByStart, should only impact C.
+ * startMin & endMax should be normalized: { startPressure: 0, endPressure: diff }
  *   A      B
  * |   |       /|
  * |___|/       |
@@ -81,60 +92,75 @@ const sortByPressure = (chunks: IPressureChunk[]) =>
  * |___|/  |    |\     |
  * |   |   |    |     \|
  * need to compute pressure at 3, 4, 5
+ * 3 & 4: compute press at specific point for pushed IRange & add pressure from terminal point.
  */
 export const computePressureChunks = (
   config: IConfig,
   potentialities: IPotentiality[]
 ): IPressureChunk[] => {
-  const [first, ...pressurePoints] = reducePressurePoints([
-    { time: config.startDate, pressureDiff: 0 },
-    ...potentialsToPressurePoint(potentialities),
-    { time: config.endDate, pressureDiff: 0 },
-  ]);
-  const initChunk: IPressureChunk = {
-    end: first.time,
-    pressure: first.pressureDiff,
-    start: config.startDate,
-  };
-  return R.unfold(R.partial(pressureChunkUnfolder, [pressurePoints]), [0, initChunk]);
-};
-
-const pressureChunkUnfolder = (
-  pressurePoints: IPressurePoint[],
-  [index, chunk]: [number, IPressureChunkPoint]
-): false | [IPressureChunk, [number, IPressureChunkPoint]] => {
-  if (index >= pressurePoints.length) {
-    return false;
-  }
-  const pp = pressurePoints[index];
-  const pressure = chunk.pressure + pp.pressureDiff;
-  return [{ ...chunk, end: pp.time }, [index + 1, { start: pp.time, pressure }]];
-};
-
-const reducePressurePoints = R.pipe(
-  R.reduceBy(
-    (acc: IPressurePoint, cur: IPressurePoint) => ({
-      pressureDiff: acc.pressureDiff + cur.pressureDiff,
-      time: cur.time,
-    }),
-    { time: -1, pressureDiff: 0 },
-    pp => '' + pp.time
-  ),
-  Object.values
-) as (pp: IPressurePoint[]) => IPressurePoint[];
-
-const potentialsToPressurePoint = (potentialities: IPotentiality[]): IPressurePoint[] => {
-  return sortByTime(
-    R.flatten<any>(
+  return sortByStart(
+    R.unnest(
       potentialities.map(pot =>
-        pot.places.map(pla => [
-          { time: pla.start, pressureDiff: pot.pressure },
-          { time: pla.end, pressureDiff: -pot.pressure },
-        ])
+        R.unnest(pot.places)
+          .filter(filterPlaceForPressure)
+          .map(placeToPressureChunk(pot.pressure))
       )
     )
+  ).reduce(reducePlaceToPressureChunk, [
+    {
+      ...configToRange(config),
+      originalRange: configToRange(config),
+      pressureEnd: 0,
+      pressureStart: 0,
+    },
+  ]);
+};
+
+const placeToPressureChunk = (pressure: number) => (place: IPotRange): IPressureChunkMerge => {
+  return {
+    end: place.end,
+    originalRange: { start: place.start, end: place.end },
+    pressureEnd: place.kind === 'end-after' ? 0 : pressure,
+    pressureStart: place.kind === 'start-before' ? 0 : pressure,
+    start: place.start,
+  };
+};
+
+const reducePlaceToPressureChunk = (
+  acc: IPressureChunkMerge[],
+  cur: IPressureChunkMerge
+): IPressureChunkMerge[] => {
+  return merge(
+    (chunks: IPressureChunkMerge[]) => {
+      if (chunks.length === 1) {
+        return chunks[0];
+      }
+      return chunks.reduce((a, b) => {
+        const maxStart = a.start > b.start ? a : b;
+        const minEnd = a.end < b.end ? a : b;
+        return {
+          ...a,
+          originalRange: { start: -1, end: -1 },
+          pressureEnd: getYfromStartEndLine(chunkToSeg(maxStart), minEnd.end) + minEnd.pressureEnd,
+          pressureStart:
+            getYfromStartEndLine(chunkToSeg(minEnd), maxStart.start) + maxStart.pressureStart,
+        };
+      });
+    },
+    [...acc, cur]
   );
 };
+
+const chunkToSeg = (chunk: IPressureChunkMerge) => ({
+  end: {
+    x: chunk.originalRange.end,
+    y: chunk.pressureEnd,
+  },
+  start: {
+    x: chunk.originalRange.start,
+    y: chunk.pressureStart,
+  },
+});
 
 export const updatePotentialsPressure = (
   config: IConfig,
@@ -237,13 +263,12 @@ export const materializePotentiality = (
   return findMaxFinitePlacement(toPlace, minAvg, updatePP, pressure, error$);
 };
 
-
 export const computePressureArea = (pressureChunk: IPressureChunk): number => {
   const A = { y: pressureChunk.pressureStart, x: pressureChunk.start };
   const B = { y: pressureChunk.pressureEnd, x: pressureChunk.end };
   const C = { x: pressureChunk.end };
   const D = { x: pressureChunk.start };
-  return (A.x*B.y - A.y*B.x) - (B.y*C.x) + (D.x*A.y);
+  return A.x * B.y - A.y * B.x - B.y * C.x + D.x * A.y;
 };
 
 const getProportionalPressure = (
