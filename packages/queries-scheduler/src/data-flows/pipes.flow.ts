@@ -1,5 +1,5 @@
 import { IQueryInternal, ITimeDurationInternal } from '@autoschedule/queries-fn';
-import { intersect, isDuring, merge, substract } from 'intervals-fn';
+import { intersect, isDuring, isOverlapping, merge, substract } from 'intervals-fn';
 import * as R from 'ramda';
 import { BehaviorSubject } from 'rxjs/BehaviorSubject';
 import { IConfig } from '../data-structures/config.interface';
@@ -11,7 +11,6 @@ import {
   IPotentialitySimul,
 } from '../data-structures/potentiality.interface';
 import { IPressureChunk, IPressureChunkMerge } from '../data-structures/pressure-chunk.interface';
-import { IPressurePoint } from '../data-structures/pressure-point.interface';
 import { IPotRange, IRange } from '../data-structures/range.interface';
 import { atomicToPlaces } from './queries.flow';
 import {
@@ -20,7 +19,6 @@ import {
   configToRange,
   fillLimitedArray,
   getYfromStartEndLine,
-  mean,
   sortByStart,
 } from './util.flow';
 
@@ -35,22 +33,25 @@ const computePressureWithSpace = (duration: ITimeDurationInternal, space: number
 const filterPlaceForPressure = (place: IPotRange) =>
   ['start', 'end', 'start-before', 'end-after'].includes(place.kind);
 
-export const placesToRanges = (places: ReadonlyArray<ReadonlyArray<IPotRange>>): IRange[] => {
-  return places.map(place => {
-    const points = place
-      .filter(filterPlaceForPressure)
-      .map(c => {
-        if (c.kind.startsWith('start')) {
-          return c.start;
-        }
-        return c.end;
-      })
-      .sort((a, b) => b - a);
-    return {
-      end: points[1],
-      start: points[0],
-    };
-  });
+export const placeToRange = (place: ReadonlyArray<IPotRange>): IRange => {
+  const points = place
+    .filter(filterPlaceForPressure)
+    .map(c => {
+      if (c.kind.startsWith('start')) {
+        return c.start;
+      }
+      return c.end;
+    })
+    .sort((a, b) => b - a);
+  return {
+    end: points[1],
+    start: points[0],
+  };
+};
+
+const placeToMaxDuration = (place: ReadonlyArray<IPotRange>): number => {
+  const range = placeToRange(place);
+  return range.end - range.start;
 };
 
 /**
@@ -60,14 +61,12 @@ export const computePressure = (
   duration: ITimeDurationInternal,
   places: ReadonlyArray<ReadonlyArray<IPotRange>>
 ): number => {
-  const space = R.sum(placesToRanges(places).map(bound => bound.end - bound.start));
+  const space = R.sum(places.map(placeToMaxDuration));
   return computePressureWithSpace(duration, space);
 };
-const sortByTime = R.sortBy<IPressurePoint>(R.prop('time'));
 
-const chunkToMean = (chunk: IPressureChunk) => mean(chunk.pressure);
 const sortByPressure = (chunks: IPressureChunk[]) =>
-  chunks.sort((a, b) => chunkToMean(a) - chunkToMean(b));
+  chunks.sort((a, b) => computePressureArea(a) - computePressureArea(b));
 
 /**
  * TODO: use IRange with pressureStart - pressureEnd
@@ -198,7 +197,7 @@ const isProgressing = (progress: number[]): boolean => {
 };
 
 const maxPlaceAvailable = (pot: IPotentiality) =>
-  pot.places.map(place => place.end - place.start).reduce(R.max, 0);
+  pot.places.map(placeToMaxDuration).reduce(R.max, 0);
 
 const findMaxFinitePlacement = (
   toPlace: IPotentiality,
@@ -222,7 +221,10 @@ const findMaxFinitePlacement = (
     materials = simulatePlacement({ ...toPlace, duration: testDuration }, pressure);
     pots = updatePP(materials);
     avgPre = potentialsToMeanPressure(pots);
-    myPre = computePressureWithSpace(toPlace, testDuration);
+    myPre = computePressureWithSpace(
+      { min: minDur, target: testDuration },
+      maxPlaceAvailable(toPlace)
+    );
     durationDelta /= 2;
     testDuration = minTestDur(
       avgPre > myPre ? testDuration - durationDelta : testDuration + durationDelta

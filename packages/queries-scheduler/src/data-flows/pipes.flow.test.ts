@@ -1,6 +1,7 @@
-import { ITimeDurationInternal } from '@autoschedule/queries-fn';
+import { IQueryInternal, ITimeDurationInternal } from '@autoschedule/queries-fn';
 import test from 'ava';
 import { isEqual } from 'intervals-fn';
+import 'rxjs/add/observable/zip';
 import { BehaviorSubject } from 'rxjs/BehaviorSubject';
 import { Observable } from 'rxjs/Observable';
 import { first, map } from 'rxjs/operators';
@@ -8,13 +9,16 @@ import { IConfig } from '../data-structures/config.interface';
 import { IPotentiality } from '../data-structures/potentiality.interface';
 import { IPressureChunk } from '../data-structures/pressure-chunk.interface';
 import { IPotRange } from '../data-structures/range.interface';
-import { computePressure, computePressureChunks, materializePotentiality, updatePotentialsPressure } from './pipes.flow';
-
-import 'rxjs/add/observable/zip';
+import {
+  computePressure,
+  computePressureChunks,
+  materializePotentiality,
+  updatePotentialsPressure,
+} from './pipes.flow';
 
 const potentialFactory = (
   dur: ITimeDurationInternal,
-  places: IPotRange[],
+  places: IPotRange[][],
   pressure = 0,
   queryId = 42
 ): IPotentiality => {
@@ -28,43 +32,30 @@ const potentialFactory = (
   };
 };
 
-const updatePotentialsPressureFromMats = (pots: IPotentiality[]) => (materials: any) =>
-  updatePotentialsPressure(pots, materials);
+const placeFactory = (range: [number, number]): IPotRange[] => {
+  return [
+    { end: range[1], start: range[0], kind: 'start' },
+    { end: range[1], start: range[0], kind: 'end' },
+  ];
+};
+
+const updatePotentialsPressureFromMats = (
+  config: IConfig,
+  query: IQueryInternal,
+  pots: IPotentiality
+) => (materials: any) => updatePotentialsPressure(config, query, pots, materials);
 
 test('will compute pressure', t => {
-  t.is(
-    computePressure(
-      potentialFactory({ min: 1, target: 1 }, [{ end: 1, start: 0, kind: 'target' }])
-    ),
-    1
-  );
-  t.is(
-    computePressure(
-      potentialFactory({ min: 0, target: 1 }, [{ end: 1, start: 0, kind: 'target' }])
-    ),
-    0.5
-  );
-  t.is(
-    computePressure(
-      potentialFactory({ min: 0, target: 1 }, [{ end: 2, start: 0, kind: 'target' }])
-    ),
-    1 / 3
-  );
-  t.is(
-    computePressure(
-      potentialFactory({ min: 1, target: 1 }, [{ end: 2, start: 0, kind: 'target' }])
-    ),
-    2 / 3
-  );
-  t.is(
-    computePressure(
-      potentialFactory({ min: 1, target: 1 }, [
-        { end: 1, start: 0, kind: 'target' },
-        { end: 2, start: 1, kind: 'target' },
-      ])
-    ),
-    2 / 3
-  );
+  let pot = potentialFactory({ min: 1, target: 1 }, [placeFactory([0, 1])]);
+  t.is(computePressure(pot.duration, pot.places), 1);
+  pot = potentialFactory({ min: 0, target: 1 }, [placeFactory([0, 1])]);
+  t.is(computePressure(pot.duration, pot.places), 0.5);
+  pot = potentialFactory({ min: 0, target: 1 }, [placeFactory([0, 2])]);
+  t.is(computePressure(pot.duration, pot.places), 1 / 3);
+  pot = potentialFactory({ min: 1, target: 1 }, [placeFactory([0, 2])]);
+  t.is(computePressure(pot.duration, pot.places), 2 / 3);
+  pot = potentialFactory({ min: 1, target: 1 }, [placeFactory([0, 1]), placeFactory([1, 2])]);
+  t.is(computePressure(pot.duration, pot.places), 2 / 3);
 });
 
 test('will compute pressure chunks when no potential', t => {

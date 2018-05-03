@@ -9,15 +9,26 @@ import 'rxjs/add/observable/forkJoin';
 import 'rxjs/add/observable/of';
 import { ConnectableObservable } from 'rxjs/observable/ConnectableObservable';
 import { combineLatest, distinctUntilChanged, map, publishReplay } from 'rxjs/operators';
-import { computePressureChunks, materializePotentiality, placesToRanges, updatePotentialsPressure } from '../data-flows/pipes.flow';
-import { linkToMask, mapToHourRange, mapToMonthRange, mapToTimeRestriction, mapToWeekdayRange, queryToPotentiality } from '../data-flows/queries.flow';
+import {
+  computePressureChunks,
+  materializePotentiality,
+  placeToRange,
+  updatePotentialsPressure,
+} from '../data-flows/pipes.flow';
+import {
+  linkToMask,
+  mapToHourRange,
+  mapToMonthRange,
+  mapToTimeRestriction,
+  mapToWeekdayRange,
+  queryToPotentiality,
+} from '../data-flows/queries.flow';
 import { IConfig } from '../data-structures/config.interface';
 import { IMaterial } from '../data-structures/material.interface';
 import { IPotentiality } from '../data-structures/potentiality.interface';
 import { IPressureChunk } from '../data-structures/pressure-chunk.interface';
 import { IRange } from '../data-structures/range.interface';
 import { getMax, sortByStart } from './util.flow';
-
 
 type IQuery = IQueryInternal;
 
@@ -273,13 +284,16 @@ const replacePotentials = (potentials$: BehaviorSubject<ReadonlyArray<IPotential
 };
 
 const potentialToMaterial = (potential: IPotentiality): ReadonlyArray<IMaterial> =>
-  placesToRanges(potential.places).map(range => ({
-    end: range.end,
-    materialId: potential.potentialId,
-    queryId: potential.queryId,
-    splitId: undefined,
-    start: range.start,
-  }));
+  potential.places.map(place => {
+    const range = placeToRange(place);
+    return {
+      end: range.end,
+      materialId: potential.potentialId,
+      queryId: potential.queryId,
+      splitId: undefined,
+      start: range.start,
+    };
+  });
 
 const addMaterials = (materials$: BehaviorSubject<ReadonlyArray<IMaterial>>) => (
   materials: ReadonlyArray<IMaterial>
