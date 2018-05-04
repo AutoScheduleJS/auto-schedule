@@ -146,7 +146,7 @@ const reducePlaceToPressureChunk = (
         const minEnd = a.end < b.end ? a : b;
         return {
           ...a,
-          originalRange: { start: -1, end: -1 },
+          originalRange: { start: maxStart.start, end: minEnd.end },
           pressureEnd: getYfromStartEndLine(chunkToSeg(maxStart), minEnd.end) + minEnd.pressureEnd,
           pressureStart:
             getYfromStartEndLine(chunkToSeg(minEnd), maxStart.start) + maxStart.pressureStart,
@@ -275,7 +275,7 @@ export const computePressureArea = (pressureChunk: IPressureChunk): number => {
   const B = { y: pressureChunk.pressureEnd, x: pressureChunk.end };
   const C = { x: pressureChunk.end };
   const D = { x: pressureChunk.start };
-  return A.x * B.y - A.y * B.x - B.y * C.x + D.x * A.y;
+  return Math.abs(A.x * B.y - A.y * B.x - B.y * C.x + D.x * A.y);
 };
 
 const rangeToDuration = (range: IRange): number => {
@@ -365,6 +365,9 @@ const placeAtomic = (toPlace: IPotentialitySimul, pressure: IPressureChunk[]): I
     return [];
   }
   const bestChunk = findBestContiguousChunk(toPlace, chunks);
+  if (!bestChunk) {
+    return [];
+  }
   return [rangeToMaterial(toPlace, minimizeChunkToDuration(bestChunk, toPlace.duration))];
 };
 

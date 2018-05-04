@@ -13,6 +13,7 @@ import {
   computePressure,
   computePressureChunks,
   materializePotentiality,
+  placeToRange,
   updatePotentialsPressure,
 } from './pipes.flow';
 
@@ -49,7 +50,28 @@ const updatePotentialsPressureFromMats = (
   config: IConfig,
   pos: IQueryPositionDurationInternal,
   pots: IPotentiality[]
-) => (materials: any) => pots.map(pot =>updatePotentialsPressure(config, pos, pot, materials));
+) => (materials: any) => pots.map(pot => updatePotentialsPressure(config, pos, pot, materials));
+
+test('will correctly transforms IPotRange to IRange - simple', t => {
+  const potRanges: IPotRange[] = [
+    { start: 0, end: 10, kind: 'start' },
+    { start: 0, end: 10, kind: 'end' },
+  ];
+  const range = placeToRange(potRanges);
+  t.is(range.start, 0);
+  t.is(range.end, 10);
+});
+
+test('will correctly transforms IPotRange to IRange - start - endTarget', t => {
+  const potRanges: IPotRange[] = [
+    { start: 2, end: 10, kind: 'start' },
+    { start: 0, end: 4, kind: 'end-before' },
+    { start: 4, end: 7, kind: 'end-after' },
+  ];
+  const range = placeToRange(potRanges);
+  t.is(range.start, 2);
+  t.is(range.end, 7);
+});
 
 test('will compute pressure', t => {
   let pot = potentialFactory({ min: 1, target: 1 }, [placeFactory([0, 1])]);
@@ -81,7 +103,7 @@ test('will compute simple pressure chunks', t => {
   t.truthy(isEqual({ start: 0, end: 1 }, pChunks[0]));
   validatePressure(t, pChunks[0], [0, 0]);
   t.truthy(isEqual({ start: 1, end: 2 }, pChunks[1]));
-  validatePressure(t, pChunks[1], [1, 1]);
+  validatePressure(t, pChunks[1], [2, 2]);
   t.truthy(isEqual({ start: 2, end: 10 }, pChunks[2]));
   validatePressure(t, pChunks[2], [0, 0]);
 });
@@ -96,9 +118,9 @@ test('will simplify pressure chunks', t => {
   t.truthy(isEqual({ start: 0, end: 1 }, pChunkA[0]));
   validatePressure(t, pChunkA[0], [0, 0]);
   t.truthy(isEqual({ start: 1, end: 2 }, pChunkA[1]));
-  validatePressure(t, pChunkA[1], [1.5, 1.5]);
+  validatePressure(t, pChunkA[1], [3, 3]);
   t.truthy(isEqual({ start: 2, end: 3 }, pChunkA[2]));
-  validatePressure(t, pChunkA[2], [1, 1]);
+  validatePressure(t, pChunkA[2], [2, 2]);
   t.truthy(isEqual({ start: 3, end: 10 }, pChunkA[3]));
   validatePressure(t, pChunkA[3], [0, 0]);
 
@@ -107,7 +129,7 @@ test('will simplify pressure chunks', t => {
   ]);
   t.is(pChunkB.length, 1);
   t.truthy(isEqual({ start: 0, end: 10 }, pChunkB[0]));
-  validatePressure(t, pChunkB[0], [0.75, 0.75]);
+  validatePressure(t, pChunkB[0], [1.5, 1.5]);
 });
 
 test('will update potentials pressure', t => {
@@ -124,12 +146,7 @@ test('will update potentials pressure', t => {
 });
 
 test('will materialize atomic potentiality', t => {
-  const toPlace = potentialFactory(
-    { min: 1, target: 1 },
-    [placeFactory([0, 10])],
-    0.1,
-    1
-  );
+  const toPlace = potentialFactory({ min: 1, target: 1 }, [placeFactory([0, 10])], 0.1, 1);
   const pots = [
     potentialFactory({ min: 5, target: 5 }, [placeFactory([0, 5])], 1, 2),
     potentialFactory({ min: 4, target: 4 }, [placeFactory([6, 10])], 1, 3),
@@ -145,12 +162,8 @@ test('will materialize atomic potentiality', t => {
   t.true(materials[0].start === 5 && materials[0].end === 6);
 });
 
-test('will materialize atomic within big chunk', t => {
-  const toPlace = potentialFactory(
-    { min: 1, target: 1 },
-    [placeFactory([4, 7])],
-    1
-  );
+test.only('will materialize atomic within big chunk', t => {
+  const toPlace = potentialFactory({ min: 1, target: 1 }, [placeFactory([4, 7])], 1);
   const pChunks = computePressureChunks({ startDate: 0, endDate: 10 }, []);
   const materials = materializePotentiality(toPlace, () => [], pChunks, new BehaviorSubject(null));
   t.is(materials.length, 1);
@@ -159,11 +172,7 @@ test('will materialize atomic within big chunk', t => {
 });
 
 test('will materialize without concurrent potentials', t => {
-  const toPlace = potentialFactory(
-    { min: 0, target: 1 },
-    [placeFactory([0, 10])],
-    0.5
-  );
+  const toPlace = potentialFactory({ min: 0, target: 1 }, [placeFactory([0, 10])], 0.5);
   const pChunks = computePressureChunks({ startDate: 0, endDate: 10 }, []);
   const materials = materializePotentiality(toPlace, () => [], pChunks, new BehaviorSubject(null));
   t.is(materials.length, 1);
@@ -177,9 +186,7 @@ test('will materialize splittable potentiality', t => {
     ...potentialFactory(duration, [placeFactory([0, 10])], 0.6, 42),
     isSplittable: true,
   };
-  const pots = [
-    potentialFactory({ min: 5, target: 5 }, [placeFactory([3, 8])], 1, 66),
-  ];
+  const pots = [potentialFactory({ min: 5, target: 5 }, [placeFactory([3, 8])], 1, 66)];
   const config = { startDate: 0, endDate: 10 };
   const pChunks = computePressureChunks(config, pots);
   const materials = materializePotentiality(
@@ -196,37 +203,33 @@ test('will materialize splittable potentiality', t => {
 test('materialize will throw if no place available', t => {
   t.plan(1);
   const duration = { min: 5, target: 10 };
-  const toPlace = potentialFactory(
-    duration,
-    [placeFactory([0, 10])],
-    0.6
-  );
+  const toPlace = potentialFactory(duration, [placeFactory([0, 10])], 0.6);
 
   const pChunks: IPressureChunk[] = [];
   const errors1 = new BehaviorSubject(null);
   const errors2 = new BehaviorSubject(null);
 
-  materializePotentiality(toPlace, (_) => [], pChunks, errors1);
+  materializePotentiality(toPlace, _ => [], pChunks, errors1);
   const pChunks2 = computePressureChunks({ startDate: 42, endDate: 52 }, []);
-  materializePotentiality(toPlace, (_) => [], pChunks2, errors2);
+  materializePotentiality(toPlace, _ => [], pChunks2, errors2);
   return Observable.zip(errors1, errors2).pipe(map(_ => t.pass('should have errors')), first());
 });
 
 test('materialize will throw if not placable without conflict', t => {
   const duration = { min: 5, target: 10 };
   const config = { startDate: 0, endDate: 10 };
-  const toPlace = potentialFactory(
-    duration,
-    [placeFactory([0, 10])],
-    0.6,
-    1
-  );
+  const toPlace = potentialFactory(duration, [placeFactory([0, 10])], 0.6, 1);
   const pots = [
     potentialFactory({ min: 5, target: 5 }, [placeFactory([0, 5])], 0.5, 2),
     potentialFactory({ min: 4, target: 4 }, [placeFactory([6, 10])], 0.65, 3),
   ];
   const pChunks = computePressureChunks({ startDate: 0, endDate: 10 }, pots);
   t.throws(
-    materializePotentiality.bind(null, toPlace, updatePotentialsPressureFromMats(config, { duration }, pots), pChunks)
+    materializePotentiality.bind(
+      null,
+      toPlace,
+      updatePotentialsPressureFromMats(config, { duration }, pots),
+      pChunks
+    )
   );
 });
