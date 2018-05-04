@@ -2,17 +2,20 @@ import { IQueryInternal, IQueryTransformationInternal } from '@autoschedule/quer
 import { intersect, simplify } from 'intervals-fn';
 import * as loki from 'lokijs';
 import { groupWith, prop, sortBy, unnest } from 'ramda';
-
 import { IConfig } from '../data-structures/config.interface';
 import { IIdentifier } from '../data-structures/identifier.interface';
 import { IGroupNeedResource, INeedResource } from '../data-structures/need-resource.interface';
 import { IRangeNeedSatisfaction } from '../data-structures/need-satisfaction.interface';
-import { IMaterial, IPotentiality, IRange } from '../data-structures/queries-scheduler.interface';
+import {
+  IMaterial,
+  IPotentiality,
+  IPotRange,
+  IRange,
+} from '../data-structures/queries-scheduler.interface';
 import { IRefDoc } from '../data-structures/ref-doc.interface';
 import { ITransformSatisfaction } from '../data-structures/transform-satisfaction.interface';
 import { allTransfo, ITransformationTime } from '../data-structures/transformation-time.interface';
 import { IUserstateCollection } from '../data-structures/userstate-collection.interface';
-
 import { computeOutputSatisfaction, computeRangeSatisfaction } from './satisfactions.flow';
 
 type IQuery = IQueryInternal;
@@ -150,9 +153,10 @@ const potToId = (potential: IPotentiality, placeI: number): IIdentifier => ({
   query: `${potential.queryId}`,
 });
 
-const potToShrinkSpace = (potential: IPotentiality) => (place: IRange, placeI: number) => {
+const potToShrinkSpace = (potential: IPotentiality) => (place: ReadonlyArray<IPotRange>, placeI: number) => {
   const id = potToId(potential, placeI);
-  const space = place.end - place.start - potential.duration.min;
+  const range = placeToRange(place);
+  const space = range.end - range.start - potential.duration.min;
   return {
     id,
     space,
@@ -253,6 +257,25 @@ const placeToTransfoTime = (
   ];
 };
 
+const filterPlaceForPressure = (place: IPotRange) =>
+  ['start', 'end', 'start-before', 'end-after'].includes(place.kind);
+
+const placeToRange = (place: ReadonlyArray<IPotRange>): IRange => {
+  const points = place
+    .filter(filterPlaceForPressure)
+    .map(c => {
+      if (c.kind.startsWith('start')) {
+        return c.start;
+      }
+      return c.end;
+    })
+    .sort((a, b) => b - a);
+  return {
+    end: points[1],
+    start: points[0],
+  };
+};
+
 const potentialToTransforanges = (queries: IQuery[]) => (
   potential: IPotentiality
 ): ITransformationTime[] => {
@@ -262,9 +285,10 @@ const potentialToTransforanges = (queries: IQuery[]) => (
     return [];
   }
   return unnest(
-    potential.places.map((place, i) =>
-      placeToTransfoTime(potToId(potential, i), transform, place.start, place.end)
-    )
+    potential.places.map((place, i) => {
+      const range = placeToRange(place);
+      return placeToTransfoTime(potToId(potential, i), transform, range.start, range.end);
+    })
   );
 };
 
