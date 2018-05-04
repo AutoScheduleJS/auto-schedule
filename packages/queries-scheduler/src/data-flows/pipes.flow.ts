@@ -10,7 +10,11 @@ import {
   IPotentialityBase,
   IPotentialitySimul,
 } from '../data-structures/potentiality.interface';
-import { IPressureChunk, IPressureChunkMerge } from '../data-structures/pressure-chunk.interface';
+import {
+  IAreaPressureChunk,
+  IPressureChunk,
+  IPressureChunkMerge,
+} from '../data-structures/pressure-chunk.interface';
 import { IPotRange, IRange } from '../data-structures/range.interface';
 import { atomicToPlaces } from './queries.flow';
 import {
@@ -65,8 +69,8 @@ export const computePressure = (
   return computePressureWithSpace(duration, space);
 };
 
-const sortByPressure = (chunks: IPressureChunk[]) =>
-  chunks.sort((a, b) => computePressureArea(a) - computePressureArea(b));
+const sortByPressure = (chunks: IAreaPressureChunk[]) =>
+  chunks.sort((a, b) => a.areaPressure - b.areaPressure);
 
 /**
  * TODO: use IRange with pressureStart - pressureEnd
@@ -273,17 +277,6 @@ export const computePressureArea = (pressureChunk: IPressureChunk): number => {
   return A.x * B.y - A.y * B.x - B.y * C.x + D.x * A.y;
 };
 
-const getProportionalPressure = (
-  dur1: number,
-  press1: number,
-  dur2: number,
-  press2: number
-): number => {
-  const total = dur1 + dur2;
-  const newPress1 = press1 * dur1 / total;
-  const newPress2 = press2 * dur2 / total;
-  return (newPress1 + newPress2) / 2;
-};
 const rangeToDuration = (range: IRange): number => {
   return range.end - range.start;
 };
@@ -291,16 +284,7 @@ const firstTimeRange = (ranges: IRange[]): number =>
   ranges.reduce((a, b) => (b.start < a ? b.start : a), Infinity);
 const lastTimeRange = (ranges: IRange[]): number =>
   ranges.reduce((a, b) => (b.end > a ? b.end : a), -Infinity);
-const scanPressure = (acc: IPressureChunk, curr: IPressureChunk): IPressureChunk => ({
-  end: lastTimeRange([acc, curr]),
-  pressure: getProportionalPressure(
-    acc.end - acc.start,
-    acc.pressure,
-    curr.end - curr.start,
-    curr.pressure
-  ),
-  start: firstTimeRange([acc, curr]),
-});
+const scanPressure = (acc: number, curr: IAreaPressureChunk) => acc + curr.areaPressure;
 
 const divideChunkByDuration = (duration: number) => (chunk: IPressureChunk): IRange[] => {
   return [
@@ -309,34 +293,47 @@ const divideChunkByDuration = (duration: number) => (chunk: IPressureChunk): IRa
   ];
 };
 
-const rangeChunkIntersectin = (chunks: IPressureChunk[]) => (range: IRange) => {
+const pressureChunkToAreaPressure = (chunk: IPressureChunk): IAreaPressureChunk => ({
+  areaPressure: computePressureArea(chunk),
+  end: chunk.end,
+  start: chunk.start,
+});
+
+const rangeChunkIntersectin = (chunks: IPressureChunk[]) => (
+  range: IRange
+): IAreaPressureChunk | null => {
   const inter = intersect(range, chunks);
   if (!inter.length) {
     return null;
   }
-  return inter.reduce(scanPressure);
+  const areaPressure = inter.map(pressureChunkToAreaPressure).reduce(scanPressure, 0);
+  return {
+    areaPressure,
+    end: lastTimeRange(inter),
+    start: firstTimeRange(inter),
+  };
 };
 
 const computeContiguousPressureChunk = (
   duration: number,
   chunks: IPressureChunk[]
-): IPressureChunk[] => {
+): IAreaPressureChunk[] => {
   if (!chunks.length) {
     return [];
   }
   return R.unnest(chunks.map(divideChunkByDuration(duration)))
     .filter(c => c.start >= firstTimeRange(chunks) && c.end <= lastTimeRange(chunks))
     .map(rangeChunkIntersectin(chunks))
-    .filter(p => p != null && p.end - p.start >= duration) as IPressureChunk[];
+    .filter(p => p != null && p.end - p.start >= duration) as IAreaPressureChunk[];
 };
 
 const findBestContiguousChunk = (
   toPlace: IPotentialitySimul,
-  chunks: IPressureChunk[]
-): IPressureChunk => {
+  chunks: IAreaPressureChunk[]
+): IAreaPressureChunk => {
   return sortByPressure(chunks).find(chunk =>
-    toPlace.places.some(isDuring(chunk))
-  ) as IPressureChunk;
+    toPlace.places.some(place => isDuring(chunk, placeToRange(place)))
+  ) as IAreaPressureChunk;
 };
 
 const rangeToMaterial = (toPlace: IPotentialityBase, chunk: IRange): IMaterial => {
@@ -348,19 +345,19 @@ const rangeToMaterial = (toPlace: IPotentialityBase, chunk: IRange): IMaterial =
   };
 };
 
-const minimizeChunkToDuration = (chunk: IPressureChunk, duration: number): IPressureChunk => ({
+/**
+ * TODO: update areaPressure
+ */
+const minimizeChunkToDuration = (
+  chunk: IAreaPressureChunk,
+  duration: number
+): IAreaPressureChunk => ({
   ...chunk,
   end: Math.min(chunk.start + duration, chunk.end),
   start: chunk.start,
 });
 
 const placeAtomic = (toPlace: IPotentialitySimul, pressure: IPressureChunk[]): IMaterial[] => {
-  if (toPlace.places.length === 1 && rangeToDuration(toPlace.places[0]) === toPlace.duration) {
-    const result = rangeChunkIntersectin(pressure)(toPlace.places[0]);
-    if (result) {
-      return [rangeToMaterial(toPlace, result)];
-    }
-  }
   const chunks = computeContiguousPressureChunk(toPlace.duration, pressure);
   if (chunks.length === 0) {
     return [];
@@ -381,7 +378,10 @@ const placeSplittableUnfold = (
   const headDuration = rangeToDuration(headChunk);
   const remainingDuration = toPlace.duration - materializedSpace;
   return [
-    rangeToMaterial(toPlace, minimizeChunkToDuration(headChunk, remainingDuration)),
+    rangeToMaterial(
+      toPlace,
+      minimizeChunkToDuration(pressureChunkToAreaPressure(headChunk), remainingDuration)
+    ),
     [Math.min(materializedSpace + headDuration, toPlace.duration), newChunks],
   ];
 };
@@ -399,13 +399,13 @@ const simulatePlacement = (
   toPlace: IPotentialitySimul,
   pressure: IPressureChunk[]
 ): IMaterial[] => {
-  const sortedChunks = sortByPressure(
-    intersect(toPlace.places, pressure.filter(isOverlapping(toPlace.places)))
-  );
+  // const sortedChunks = sortByPressure(
+  //   intersect(toPlace.places, pressure.filter(isOverlapping(toPlace.places)))
+  // );
   if (!toPlace.isSplittable) {
-    return placeAtomic(toPlace, sortedChunks);
+    return placeAtomic(toPlace, pressure);
   }
-  return placeSplittable(toPlace, sortedChunks);
+  return placeSplittable(toPlace, pressure);
 };
 
 const validatePotentials = R.none(R.propSatisfies(p => p > 1, 'pressure'));
