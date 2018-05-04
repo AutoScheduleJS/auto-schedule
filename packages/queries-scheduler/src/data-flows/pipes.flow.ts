@@ -49,7 +49,7 @@ export const placeToRange = (place: ReadonlyArray<IPotRange>): IRange => {
       }
       return c.end;
     })
-    .sort((a, b) => b - a);
+    .sort((a, b) => a - b);
   return {
     end: points[1],
     start: points[0],
@@ -332,6 +332,7 @@ const findBestContiguousChunk = (
   toPlace: IPotentialitySimul,
   chunks: IAreaPressureChunk[]
 ): IAreaPressureChunk => {
+  debugger;
   return sortByPressure(chunks).find(chunk =>
     toPlace.places.some(place => isDuring(chunk, placeToRange(place)))
   ) as IAreaPressureChunk;

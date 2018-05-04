@@ -269,7 +269,7 @@ const placeToRange = (place: ReadonlyArray<IPotRange>): IRange => {
       }
       return c.end;
     })
-    .sort((a, b) => b - a);
+    .sort((a, b) => a - b);
   return {
     end: points[1],
     start: points[0],
