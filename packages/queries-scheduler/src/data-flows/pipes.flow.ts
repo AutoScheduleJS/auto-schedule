@@ -1,5 +1,8 @@
-import { IQueryInternal, ITimeDurationInternal } from '@autoschedule/queries-fn';
-import { intersect, isDuring, isOverlapping, merge, substract } from 'intervals-fn';
+import {
+  IQueryPositionDurationInternal,
+  ITimeDurationInternal,
+} from '@autoschedule/queries-fn';
+import { intersect, isDuring, merge, substract } from 'intervals-fn';
 import * as R from 'ramda';
 import { BehaviorSubject } from 'rxjs/BehaviorSubject';
 import { IConfig } from '../data-structures/config.interface';
@@ -167,18 +170,16 @@ const chunkToSeg = (chunk: IPressureChunkMerge) => ({
 
 export const updatePotentialsPressure = (
   config: IConfig,
-  query: IQueryInternal,
+  position: IQueryPositionDurationInternal,
   potentiality: IPotentiality,
   materials: ReadonlyArray<IMaterial>,
   ...masks: IRange[][]
 ): IPotentiality => {
   const boundaries = substract(
     masks.reduce((a, b) => intersect(b, a), [configToRange(config)]),
-    materials.filter(
-      m => m.queryId !== potentiality.queryId || m.materialId !== potentiality.potentialId
-    )
+    materials
   );
-  const places = boundaries.map(bounds => atomicToPlaces(bounds, query.position));
+  const places = boundaries.map(bounds => atomicToPlaces(bounds, position));
   const pressure = computePressure(potentiality.duration, places);
   return {
     ...potentiality,

@@ -265,17 +265,25 @@ const queriesToPotentialities = (
   potentials: ReadonlyArray<IPotentiality>,
   materials: ReadonlyArray<IMaterial>
 ): IPotentiality[] =>
-  queries.map(
-    R.converge(updatePotentialsPressure, [
-      () => config,
-      R.identity,
-      queryToPotentiality,
-      () => materials,
-      queryToMask(config),
-      linkToMask([...materials, ...R.unnest(potentials.map(potentialToMaterial))], config),
-      (q: IQuery) => userstateHandler(q, [...potentials], [...materials]),
-    ])
-  );
+  queries.map(query => {
+    const pot = queryToPotentiality(query);
+    const filteredMats = materials.filter(
+      m => m.queryId !== pot.queryId || m.materialId !== pot.potentialId
+    );
+    return updatePotentialsPressure(
+      config,
+      query.position,
+      pot,
+      filteredMats,
+      queryToMask(config, query),
+      [
+        ...linkToMask([...materials, ...R.unnest(potentials.map(potentialToMaterial))], config)(
+          query
+        ),
+      ],
+      userstateHandler(query, [...potentials], [...materials])
+    );
+  });
 
 const replacePotentials = (potentials$: BehaviorSubject<ReadonlyArray<IPotentiality>>) => (
   potentials: ReadonlyArray<IPotentiality>
