@@ -72,3 +72,5 @@ export const getYfromStartEndLine = (
   const b = start.y - a * start.x;
   return a * x + b;
 };
+
+export const withinRange = (range: IRange) => (nb: number) => nb >= range.start && nb <= range.end;
