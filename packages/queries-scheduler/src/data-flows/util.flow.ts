@@ -6,7 +6,7 @@ export const asymptotTo = (limit: number) => (value: number) => value / (value +
 export const mean = (...list: number[]) => list.reduce((a, b) => a + b) / list.length;
 
 export const fillLimitedArray = <T>(limit: number) => (arr: T[], value: T): T[] => {
-  return arr.length < limit ? [...arr, value] : [...arr.slice(0, -1), value];
+  return arr.length < limit ? [...arr, value] : [...arr.slice(1), value];
 };
 
 export const areSameNumber = (minDiff: number) => (avg1: number, avg2: number): boolean => {

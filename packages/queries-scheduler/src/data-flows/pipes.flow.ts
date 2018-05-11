@@ -194,7 +194,7 @@ const isProgressing = (progress: number[]): boolean => {
     (progress.length === 1 ||
       !R.reduceWhile(
         ({ similar }, _) => similar,
-        ({ similar, value }, cur) => ({ similar: similar && Object.is(value, cur), value: cur }),
+        ({ similar, value }, cur) => ({ similar: similar && Math.abs(value - cur) < 0.05, value: cur }),
         { similar: true, value: progress[0] },
         progress
       ).similar) &&
@@ -205,9 +205,20 @@ const isProgressing = (progress: number[]): boolean => {
 const maxPlaceAvailable = (pot: IPotentiality) =>
   pot.places.map(placeToMaxDuration).reduce(R.max, 0);
 
+const stopSearchFn = () => {
+  let lastProgress: boolean[] = [];
+  const fillProgress = fillLimitedArray<boolean>(3);
+  return (progress: boolean, avgPressure: number) => {
+    lastProgress = fillProgress(lastProgress, progress);
+    if (!progress && avgPressure <= 1) {
+      return true;
+    }
+    return avgPressure > 1 && lastProgress.every(p => !p)
+  }
+}
+
 const findMaxFinitePlacement = (
   toPlace: IPotentiality,
-  minAvg: number,
   updatePP: (m: IMaterial[]) => IPotentiality[],
   pressure: IPressureChunk[],
   error$: BehaviorSubject<any>
@@ -215,7 +226,8 @@ const findMaxFinitePlacement = (
   const minDur = toPlace.duration.min;
   const fillArray = fillLimitedArray<number>(3);
   const maxTest = maxPlaceAvailable(toPlace);
-  const minTestDur = (dur: number) => Math.min(dur, maxTest);
+  const minTestDur = (dur: number) => Math.min(Math.floor(dur), maxTest);
+  const stopSearch = stopSearchFn();
   let lastProgress: number[] = [];
   let durationDelta = toPlace.duration.target - minDur;
   let testDuration = minTestDur(minDur + durationDelta / 2);
@@ -231,12 +243,14 @@ const findMaxFinitePlacement = (
       { min: minDur, target: testDuration },
       maxPlaceAvailable(toPlace)
     );
-    durationDelta /= 2;
-    testDuration = minTestDur(
-      avgPre > myPre ? testDuration - durationDelta : testDuration + durationDelta
-    );
+    durationDelta /= 1.8;
+    let factor = avgPre > myPre ? 1 : -1;
+    if (avgPre > 1) {
+      factor *= -1;
+    }
+    testDuration = minTestDur(testDuration + factor * durationDelta);
     lastProgress = fillArray(lastProgress, Math.abs(avgPre - myPre));
-  } while (!areSameNumber(0.1)(minAvg, avgPre) && isProgressing(lastProgress));
+  } while (!stopSearch(isProgressing(lastProgress), avgPre));
   const err: IMaterial[] = [];
   if (!materials.length || !validatePotentials(pots)) {
     error$.next(new ConflictError(toPlace.queryId)); // Throw pots with pressure > 1
@@ -251,7 +265,6 @@ export const materializePotentiality = (
   pressure: IPressureChunk[],
   error$: BehaviorSubject<any>
 ): IMaterial[] => {
-  debugger;
   const minMaterials = simulatePlacement(potToSimul('min', toPlace), pressure);
   const maxMaterials = simulatePlacement(potToSimul('target', toPlace), pressure);
   if (!minMaterials.length && !maxMaterials.length) {
@@ -269,7 +282,7 @@ export const materializePotentiality = (
     error$.next(new ConflictError(toPlace.queryId)); // use pots with > 1 pressure
     return [];
   }
-  return findMaxFinitePlacement(toPlace, minAvg, updatePP, pressure, error$);
+  return findMaxFinitePlacement(toPlace, updatePP, pressure, error$);
 };
 
 export const computePressureArea = (pressureChunk: IPressureChunk): number => {
@@ -349,7 +362,7 @@ const computeContiguousPressureChunk = (
 };
 
 const reduceAreaPressureToMin = (areaPressures: IAreaPressureChunk[]): IAreaPressureChunk => {
-  return areaPressures.reduce((acc, curr) => (acc.areaPressure < curr.areaPressure ? acc : curr));
+  return areaPressures.reduce((acc, curr) => (acc.areaPressure <= curr.areaPressure ? acc : curr));
 };
 
 const placeToTinniest = (places: ReadonlyArray<IPotRange>): IRange => {
@@ -421,9 +434,12 @@ const placeSplittableUnfold = (
     [Math.min(materializedSpace + headDuration, toPlace.duration), newChunks],
   ];
 };
+const sortByPressure = (chunks: ReadonlyArray<IPressureChunk>) =>
+  [...chunks].sort((a, b) => computePressureArea(a) - computePressureArea(b));
 
 const placeSplittable = (toPlace: IPotentialitySimul, pressure: IPressureChunk[]): IMaterial[] => {
-  return R.unfold(R.partial(placeSplittableUnfold, [toPlace]), [0, pressure]).map(
+  const sortedPressure = sortByPressure(pressure);
+  return R.unfold(R.partial(placeSplittableUnfold, [toPlace]), [0, sortedPressure]).map(
     (material, i) => ({ ...material, splitId: i })
   );
 };
@@ -435,9 +451,6 @@ const simulatePlacement = (
   toPlace: IPotentialitySimul,
   pressure: IPressureChunk[]
 ): IMaterial[] => {
-  // const sortedChunks = sortByPressure(
-  //   intersect(toPlace.places, pressure.filter(isOverlapping(toPlace.places)))
-  // );
   if (!toPlace.isSplittable) {
     return placeAtomic(toPlace, pressure);
   }

@@ -162,7 +162,7 @@ test('will materialize atomic potentiality', t => {
   t.true(materials[0].start === 5 && materials[0].end === 6);
 });
 
-test.only('will materialize atomic within big chunk', t => {
+test('will materialize atomic within big chunk', t => {
   const toPlace = potentialFactory({ min: 1, target: 1 }, [placeFactory([4, 7])], 1);
   const pChunks = computePressureChunks({ startDate: 0, endDate: 10 }, []);
   const materials = materializePotentiality(toPlace, () => [], pChunks, new BehaviorSubject(null));
@@ -197,7 +197,7 @@ test('will materialize splittable potentiality', t => {
   );
   t.is(materials.length, 2);
   t.true(materials[0].start === 0 && materials[0].end === 3);
-  t.true(materials[1].start === 8 && materials[1].end === 10);
+  t.true(materials[1].start === 8 && materials[1].end === 9);
 });
 
 test('materialize will throw if no place available', t => {
