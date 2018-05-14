@@ -332,6 +332,7 @@ const rangeChunkIntersectin = (chunks: IPressureChunk[]) => (
 
 /**
  * Use Places -> divideChunk for tiniest extremity (start/end)
+ * should use chunk pressure/start/end & start-before/after
  */
 const computeContiguousPressureChunk = (
   potential: IPotentialitySimul,
@@ -342,6 +343,7 @@ const computeContiguousPressureChunk = (
   }
   const areaPressures = potential.places
     .map(place => {
+      debugger;
       const tiniestStartingRange = placeToTinniest(place);
       const [startRange, endRange] = placeToStartEndRanges(place);
       const dividedChunks = intersect(tiniestStartingRange, chunks);
