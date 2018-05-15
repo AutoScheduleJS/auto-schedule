@@ -194,7 +194,10 @@ const isProgressing = (progress: number[]): boolean => {
     (progress.length === 1 ||
       !R.reduceWhile(
         ({ similar }, _) => similar,
-        ({ similar, value }, cur) => ({ similar: similar && Math.abs(value - cur) < 0.05, value: cur }),
+        ({ similar, value }, cur) => ({
+          similar: similar && Math.abs(value - cur) < 0.05,
+          value: cur,
+        }),
         { similar: true, value: progress[0] },
         progress
       ).similar) &&
@@ -213,9 +216,9 @@ const stopSearchFn = () => {
     if (!progress && avgPressure <= 1) {
       return true;
     }
-    return avgPressure > 1 && lastProgress.every(p => !p)
-  }
-}
+    return avgPressure > 1 && lastProgress.every(p => !p);
+  };
+};
 
 const findMaxFinitePlacement = (
   toPlace: IPotentiality,
@@ -322,6 +325,7 @@ const rangeChunkIntersectin = (chunks: IPressureChunk[]) => (
   if (!inter.length) {
     return null;
   }
+  // add all area surface
   const areaPressure = inter.map(pressureChunkToAreaPressure).reduce(scanPressure, 0);
   return {
     areaPressure,
@@ -331,13 +335,19 @@ const rangeChunkIntersectin = (chunks: IPressureChunk[]) => (
 };
 
 /**
- * Use Places -> divideChunk for tiniest extremity (start/end)
- * should use chunk pressure/start/end & start-before/after
+ * start-before: 0 -> 1
+ * start-after: 1 -> 0
+ *
+ * merge places with chunk (multiply pressure)
  */
+const adjustAreaPressure = (places: ReadonlyArray<IPotRange>) => (
+  chunk: IAreaPressureChunk | null
+): IPressureChunk => {};
+
 const computeContiguousPressureChunk = (
   potential: IPotentialitySimul,
   chunks: IPressureChunk[]
-): IAreaPressureChunk | null => {
+): IPressureChunk | null => {
   if (!chunks.length) {
     return null;
   }
@@ -346,24 +356,27 @@ const computeContiguousPressureChunk = (
       debugger;
       const tiniestStartingRange = placeToTinniest(place);
       const [startRange, endRange] = placeToStartEndRanges(place);
+
+      // Intersect with tiniest ranges (before/after)
       const dividedChunks = intersect(tiniestStartingRange, chunks);
       const allResultChunks = R.unnest(dividedChunks.map(divideChunkByDuration(potential.duration)))
         .filter(c => withinRange(startRange)(c.start) && withinRange(endRange)(c.end))
         .map(rangeChunkIntersectin(chunks))
-        .filter(c => c != null && c.end - c.start >= potential.duration) as IAreaPressureChunk[];
+        .filter(c => c != null && c.end - c.start >= potential.duration)
+        .map(adjustAreaPressure(place));
       if (allResultChunks.length < 2) {
         return allResultChunks[0];
       }
-      return reduceAreaPressureToMin(allResultChunks);
+      return reduceChunksToMin(allResultChunks);
     })
     .filter(p => p != null);
   if (areaPressures.length < 2) {
     return areaPressures[0];
   }
-  return reduceAreaPressureToMin(areaPressures);
+  return reduceChunksToMin(areaPressures);
 };
 
-const reduceAreaPressureToMin = (areaPressures: IAreaPressureChunk[]): IAreaPressureChunk => {
+const reduceChunksToMin = (areaPressures: IPressureChunk[]): IPressureChunk => {
   return areaPressures.reduce((acc, curr) => (acc.areaPressure <= curr.areaPressure ? acc : curr));
 };
 
@@ -400,10 +413,7 @@ const rangeToMaterial = (toPlace: IPotentialityBase, chunk: IRange): IMaterial =
 /**
  * TODO: update areaPressure
  */
-const minimizeChunkToDuration = (
-  chunk: IAreaPressureChunk,
-  duration: number
-): IAreaPressureChunk => ({
+const minimizeChunkToDuration = (chunk: IRange, duration: number): IRange => ({
   ...chunk,
   end: Math.min(chunk.start + duration, chunk.end),
   start: chunk.start,
