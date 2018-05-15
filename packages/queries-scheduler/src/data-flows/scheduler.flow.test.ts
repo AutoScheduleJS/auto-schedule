@@ -44,7 +44,7 @@ test('will schedule dummy query', t => {
   );
 });
 
-test.only('will properly use pressureChunk and minDuration', t => {
+test('will properly use pressureChunk and minDuration', t => {
   t.plan(5);
   const config: IConfig = { endDate: 100, startDate: 0 };
   const queries: Q.IQueryInternal[] = [

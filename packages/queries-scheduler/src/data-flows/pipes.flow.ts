@@ -335,21 +335,26 @@ const rangeChunkIntersectin = (chunks: IPressureChunk[]) => (
   };
 };
 
-const adjustAreaPressure = (places: ReadonlyArray<IPotRange>) => (
+const computePressureFactorFn = (potRange: IPotRange) => (x: number) => {
+  const seg = potRangeToSeg(potRange);
+  return Math.min(1, Math.max(0.5, getYfromStartEndLine(seg, x)));
+}
+
+const adjustAreaPressure = (_: IPotentialitySimul, places: ReadonlyArray<IPotRange>) => (
   chunk: IAreaPressureChunk
-): IPressureChunk =>
-  places.reduce((acc, cur) => {
-    const interPlace = intersect(acc, cur)[0];
-    if (interPlace == null) {
-      return acc;
-    }
-    const seg = potRangeToSeg(cur);
+): IPressureChunk => {
+  return places.reduce((acc, cur) => {
+    const computePressureFactor = computePressureFactorFn(cur);
+    const endFactor = computePressureFactor(acc.end);
+    const startFactor = computePressureFactor(acc.start);
+    // console.log(`For: ${cur.kind}, with acc: ${acc.start}-${acc.end}: S:${startFactor};E:${endFactor}; queryId: ${pot.queryId}, dur: ${pot.duration}`);
     return {
       ...acc,
-      pressureEnd: Math.min(1, getYfromStartEndLine(seg, interPlace.end)) * acc.pressureEnd,
-      pressureStart: Math.min(1, getYfromStartEndLine(seg, interPlace.start)) * acc.pressureStart,
+      pressureEnd: endFactor * acc.pressureEnd,
+      pressureStart: startFactor * acc.pressureStart,
     };
   }, areaToPressureChunk(chunk));
+}
 
 /**
  * Define fav points that will lower pressure
@@ -380,14 +385,13 @@ const computeContiguousPressureChunk = (
   }
   const areaPressures = potential.places
     .map(place => {
-      debugger;
       const [startRange, endRange] = placeToStartEndRanges(place);
       const dividedChunks = intersect(placeToTinniest(place), chunks);
       const allResultChunks = R.unnest(dividedChunks.map(divideChunkByDuration(potential.duration)))
-        .filter(c => withinRange(startRange)(c.start) && withinRange(endRange)(c.end))
-        .map(rangeChunkIntersectin(chunks))
-        .filter(c => c != null && c.end - c.start >= potential.duration)
-        .map(chunk => adjustAreaPressure(place)(chunk as IAreaPressureChunk));
+      .filter(c => withinRange(startRange)(c.start) && withinRange(endRange)(c.end))
+      .map(rangeChunkIntersectin(chunks))
+      .filter(c => c != null && c.end - c.start >= potential.duration)
+      .map(chunk => adjustAreaPressure(potential, place)(chunk as IAreaPressureChunk));
       if (allResultChunks.length < 2) {
         return allResultChunks[0];
       }
