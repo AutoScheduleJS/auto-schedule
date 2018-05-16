@@ -1,4 +1,8 @@
-import { IQueryPositionDurationInternal, ITimeDurationInternal } from '@autoschedule/queries-fn';
+import {
+  IQueryPositionDurationInternal,
+  ITimeBoundary,
+  ITimeDurationInternal,
+} from '@autoschedule/queries-fn';
 import test, { TestContext } from 'ava';
 import { isEqual } from 'intervals-fn';
 import 'rxjs/add/observable/zip';
@@ -8,7 +12,7 @@ import { first, map } from 'rxjs/operators';
 import { IConfig } from '../data-structures/config.interface';
 import { IPotentiality } from '../data-structures/potentiality.interface';
 import { IPressureChunk } from '../data-structures/pressure-chunk.interface';
-import { IPotRange, IRange } from '../data-structures/range.interface';
+import { IPotRange, IPotRangeKind, IRange } from '../data-structures/range.interface';
 import {
   computePressure,
   computePressureChunks,
@@ -33,11 +37,36 @@ const potentialFactory = (
   };
 };
 
-const placeFactory = (range: [number, number]): IPotRange[] => {
+const placeFactoryRange = (range: [number, number]): IPotRange[] => {
   return [
     { end: range[1], start: range[0], kind: 'start' },
     { end: range[1], start: range[0], kind: 'end' },
   ];
+};
+interface ITimeBoundaryTest {
+  max: number;
+  min: number;
+  target?: number;
+}
+const placeTipFn = (tb: ITimeBoundaryTest, kind: 'start' | 'end'): IPotRange[] => {
+  return tb.target
+    ? [
+        { kind: `${kind}-before` as IPotRangeKind, start: tb.min, end: tb.target },
+        { kind: `${kind}-after` as IPotRangeKind, start: tb.target, end: tb.max },
+      ]
+    : [{ kind: `${kind}` as IPotRangeKind, start: tb.min, end: tb.max }];
+};
+
+const tbFn = (config: IConfig) => (tb: ITimeBoundary): ITimeBoundaryTest => {
+  return {
+    max: tb.max ? tb.max : config.endDate,
+    min: tb.min ? tb.min : config.startDate,
+    target: tb.target,
+  };
+};
+
+const placeFactoryTB = (start: ITimeBoundaryTest, end: ITimeBoundaryTest) => {
+  return [...placeTipFn(start, 'start'), ...placeTipFn(end, 'end')];
 };
 
 const validatePressure = (t: TestContext, chunk: IPressureChunk, pressure: [number, number]) => {
@@ -76,15 +105,18 @@ test('will correctly transforms IPotRange to IRange - start - endTarget', t => {
 });
 
 test('will compute pressure', t => {
-  let pot = potentialFactory({ min: 1, target: 1 }, [placeFactory([0, 1])]);
+  let pot = potentialFactory({ min: 1, target: 1 }, [placeFactoryRange([0, 1])]);
   t.is(computePressure(pot.duration, pot.places), 1);
-  pot = potentialFactory({ min: 0, target: 1 }, [placeFactory([0, 1])]);
+  pot = potentialFactory({ min: 0, target: 1 }, [placeFactoryRange([0, 1])]);
   t.is(computePressure(pot.duration, pot.places), 0.5);
-  pot = potentialFactory({ min: 0, target: 1 }, [placeFactory([0, 2])]);
+  pot = potentialFactory({ min: 0, target: 1 }, [placeFactoryRange([0, 2])]);
   t.is(computePressure(pot.duration, pot.places), 1 / 3);
-  pot = potentialFactory({ min: 1, target: 1 }, [placeFactory([0, 2])]);
+  pot = potentialFactory({ min: 1, target: 1 }, [placeFactoryRange([0, 2])]);
   t.is(computePressure(pot.duration, pot.places), 2 / 3);
-  pot = potentialFactory({ min: 1, target: 1 }, [placeFactory([0, 1]), placeFactory([1, 2])]);
+  pot = potentialFactory({ min: 1, target: 1 }, [
+    placeFactoryRange([0, 1]),
+    placeFactoryRange([1, 2]),
+  ]);
   t.is(computePressure(pot.duration, pot.places), 2 / 3);
 });
 
@@ -99,7 +131,7 @@ test('will compute pressure chunks when no potential', t => {
 test('will compute simple pressure chunks', t => {
   const config: IConfig = { startDate: 0, endDate: 10 };
   const pChunks = computePressureChunks(config, [
-    potentialFactory({ min: 1, target: 1 }, [placeFactory([1, 2])], 1),
+    potentialFactory({ min: 1, target: 1 }, [placeFactoryRange([1, 2])], 1),
   ]);
   t.is(pChunks.length, 3);
   t.truthy(isEqual({ start: 0, end: 1 }, pChunks[0]));
@@ -110,11 +142,31 @@ test('will compute simple pressure chunks', t => {
   validatePressure(t, pChunks[2], [0, 0]);
 });
 
+test.only('will compute pressure chunks with start/end-before/after', t => {
+  const config: IConfig = { startDate: 0, endDate: 10 };
+  const myTbFn = tbFn(config);
+  const pChunks = computePressureChunks(config, [
+    potentialFactory(
+      { min: 2, target: 4 },
+      [placeFactoryTB(myTbFn({ target: 2 }), myTbFn({ target: 6 }))],
+      1,
+      1
+    ),
+  ]);
+  t.is(pChunks.length, 3);
+  t.truthy(isEqual({ start: 0, end: 2 }, pChunks[0]));
+  validatePressure(t, pChunks[0], [0, 2]);
+  t.truthy(isEqual({ start: 2, end: 6 }, pChunks[1]));
+  validatePressure(t, pChunks[1], [2, 2]);
+  t.truthy(isEqual({ start: 6, end: 10 }, pChunks[2]));
+  validatePressure(t, pChunks[2], [2, 0]);
+});
+
 test('will simplify pressure chunks', t => {
   const config: IConfig = { startDate: 0, endDate: 10 };
   const pChunkA = computePressureChunks(config, [
-    potentialFactory({ min: 0, target: 1 }, [placeFactory([1, 2])], 0.5, 1),
-    potentialFactory({ min: 2, target: 2 }, [placeFactory([1, 3])], 1, 2),
+    potentialFactory({ min: 0, target: 1 }, [placeFactoryRange([1, 2])], 0.5, 1),
+    potentialFactory({ min: 2, target: 2 }, [placeFactoryRange([1, 3])], 1, 2),
   ]);
   t.is(pChunkA.length, 4);
   t.truthy(isEqual({ start: 0, end: 1 }, pChunkA[0]));
@@ -127,7 +179,7 @@ test('will simplify pressure chunks', t => {
   validatePressure(t, pChunkA[3], [0, 0]);
 
   const pChunkB = computePressureChunks(config, [
-    potentialFactory({ min: 5, target: 10 }, [placeFactory([0, 10])], 0.75, 3),
+    potentialFactory({ min: 5, target: 10 }, [placeFactoryRange([0, 10])], 0.75, 3),
   ]);
   t.is(pChunkB.length, 1);
   t.truthy(isEqual({ start: 0, end: 10 }, pChunkB[0]));
@@ -136,7 +188,7 @@ test('will simplify pressure chunks', t => {
 
 test('will update potentials pressure', t => {
   const duration = { min: 2, target: 2 };
-  const pot = potentialFactory(duration, [placeFactory([0, 2])], 1);
+  const pot = potentialFactory(duration, [placeFactoryRange([0, 2])], 1);
   const updated = updatePotentialsPressure(
     { startDate: 0, endDate: 2 },
     { duration },
@@ -148,10 +200,10 @@ test('will update potentials pressure', t => {
 });
 
 test('will materialize atomic potentiality', t => {
-  const toPlace = potentialFactory({ min: 1, target: 1 }, [placeFactory([0, 10])], 0.1, 1);
+  const toPlace = potentialFactory({ min: 1, target: 1 }, [placeFactoryRange([0, 10])], 0.1, 1);
   const pots = [
-    potentialFactory({ min: 5, target: 5 }, [placeFactory([0, 5])], 1, 2),
-    potentialFactory({ min: 4, target: 4 }, [placeFactory([6, 10])], 1, 3),
+    potentialFactory({ min: 5, target: 5 }, [placeFactoryRange([0, 5])], 1, 2),
+    potentialFactory({ min: 4, target: 4 }, [placeFactoryRange([6, 10])], 1, 3),
   ];
   const pChunks = computePressureChunks({ startDate: 0, endDate: 10 }, pots);
   const materials = materializePotentiality(
@@ -165,7 +217,7 @@ test('will materialize atomic potentiality', t => {
 });
 
 test('will materialize atomic within big chunk', t => {
-  const toPlace = potentialFactory({ min: 1, target: 1 }, [placeFactory([4, 7])], 1);
+  const toPlace = potentialFactory({ min: 1, target: 1 }, [placeFactoryRange([4, 7])], 1);
   const pChunks = computePressureChunks({ startDate: 0, endDate: 10 }, []);
   const materials = materializePotentiality(toPlace, () => [], pChunks, new BehaviorSubject(null));
   t.is(materials.length, 1);
@@ -174,7 +226,7 @@ test('will materialize atomic within big chunk', t => {
 });
 
 test('will materialize without concurrent potentials', t => {
-  const toPlace = potentialFactory({ min: 0, target: 1 }, [placeFactory([0, 10])], 0.5);
+  const toPlace = potentialFactory({ min: 0, target: 1 }, [placeFactoryRange([0, 10])], 0.5);
   const pChunks = computePressureChunks({ startDate: 0, endDate: 10 }, []);
   const materials = materializePotentiality(toPlace, () => [], pChunks, new BehaviorSubject(null));
   t.is(materials.length, 1);
@@ -185,10 +237,10 @@ test('will materialize without concurrent potentials', t => {
 test('will materialize splittable potentiality', t => {
   const duration = { min: 1, target: 9 };
   const toPlace: IPotentiality = {
-    ...potentialFactory(duration, [placeFactory([0, 10])], 0.6, 42),
+    ...potentialFactory(duration, [placeFactoryRange([0, 10])], 0.6, 42),
     isSplittable: true,
   };
-  const pots = [potentialFactory({ min: 5, target: 5 }, [placeFactory([3, 8])], 1, 66)];
+  const pots = [potentialFactory({ min: 5, target: 5 }, [placeFactoryRange([3, 8])], 1, 66)];
   const config = { startDate: 0, endDate: 10 };
   const pChunks = computePressureChunks(config, pots);
   const materials = materializePotentiality(
@@ -207,7 +259,7 @@ test('will materialize splittable potentiality', t => {
 test('materialize will throw if no place available', t => {
   t.plan(1);
   const duration = { min: 5, target: 10 };
-  const toPlace = potentialFactory(duration, [placeFactory([0, 10])], 0.6);
+  const toPlace = potentialFactory(duration, [placeFactoryRange([0, 10])], 0.6);
 
   const pChunks: IPressureChunk[] = [];
   const errors1 = new BehaviorSubject(null);
@@ -222,12 +274,12 @@ test('materialize will throw if no place available', t => {
 test('materialize will throw if not placable without conflict', t => {
   const duration = { min: 5, target: 10 };
   const config = { startDate: 0, endDate: 10 };
-  const toPlace = potentialFactory(duration, [placeFactory([0, 10])], 0.6, 1);
+  const toPlace = potentialFactory(duration, [placeFactoryRange([0, 10])], 0.6, 1);
   const dur1 = { min: 5, target: 5 };
   const dur2 = { min: 4, target: 4 };
   const pots = [
-    potentialFactory(dur1, [placeFactory([0, 5])], 1, 2),
-    potentialFactory(dur2, [placeFactory([6, 10])], 1, 3),
+    potentialFactory(dur1, [placeFactoryRange([0, 5])], 1, 2),
+    potentialFactory(dur2, [placeFactoryRange([6, 10])], 1, 3),
   ];
   const pChunks = computePressureChunks({ startDate: 0, endDate: 10 }, pots);
   const errors = new BehaviorSubject(null);

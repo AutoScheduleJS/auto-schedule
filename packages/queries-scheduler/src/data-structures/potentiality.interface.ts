@@ -19,5 +19,6 @@ export interface IPotentiality extends IPotentialityBase {
 
 export interface IPotentialitySimul extends IPotentialityBase {
   readonly duration: number;
+  readonly pressure: number;
   readonly [others: string]: any;
 }

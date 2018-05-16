@@ -335,23 +335,28 @@ const rangeChunkIntersectin = (chunks: IPressureChunk[]) => (
   };
 };
 
-const computePressureFactorFn = (potRange: IPotRange) => (x: number) => {
-  const seg = potRangeToSeg(potRange);
-  return Math.min(1, Math.max(0.5, getYfromStartEndLine(seg, x)));
+const computePressureFactorFn = (potRange: IPotRange, maxPressure: number) => (x: number) => {
+  const seg = potRangeToSeg(potRange, maxPressure);
+  if (!withinRange(potRange)(x)) {
+    return 0;
+  }
+  return Math.min(0, Math.max(-maxPressure, getYfromStartEndLine(seg, x) * -1));
 }
 
-const adjustAreaPressure = (_: IPotentialitySimul, places: ReadonlyArray<IPotRange>) => (
+const potRangeKindIs = (kind: 'start' | 'end') => (potRange: IPotRange): boolean => potRange.kind.startsWith(kind);
+
+const adjustAreaPressure = (pot: IPotentialitySimul, places: ReadonlyArray<IPotRange>) => (
   chunk: IAreaPressureChunk
 ): IPressureChunk => {
   return places.reduce((acc, cur) => {
-    const computePressureFactor = computePressureFactorFn(cur);
-    const endFactor = computePressureFactor(acc.end);
-    const startFactor = computePressureFactor(acc.start);
-    // console.log(`For: ${cur.kind}, with acc: ${acc.start}-${acc.end}: S:${startFactor};E:${endFactor}; queryId: ${pot.queryId}, dur: ${pot.duration}`);
+    const computePressureFactor = computePressureFactorFn(cur, pot.pressure);
+    const endFactor = potRangeKindIs('end')(cur) ? computePressureFactor(acc.end) : 0;
+    const startFactor = potRangeKindIs('start')(cur) ? computePressureFactor(acc.start) : 0;
+    console.log(`For: ${cur.kind}, with acc: ${acc.start}-${acc.end}: S:${startFactor};E:${endFactor}; queryId: ${pot.queryId}, dur: ${pot.duration}`);
     return {
       ...acc,
-      pressureEnd: endFactor * acc.pressureEnd,
-      pressureStart: startFactor * acc.pressureStart,
+      pressureEnd: acc.pressureEnd + endFactor,
+      pressureStart: acc.pressureStart + startFactor,
     };
   }, areaToPressureChunk(chunk));
 }
@@ -359,13 +364,13 @@ const adjustAreaPressure = (_: IPotentialitySimul, places: ReadonlyArray<IPotRan
 /**
  * Define fav points that will lower pressure
  */
-const potRangeToSeg = (potRange: IPotRange) => {
+const potRangeToSeg = (potRange: IPotRange, maxPressure: number) => {
   const endZeroKinds: IPotRangeKind[] = ['end-before', 'start-before'];
   const startZeroKinds: IPotRangeKind[] = ['start-after', 'end-after'];
   const k = potRange.kind;
   return {
-    end: { x: potRange.end, y: endZeroKinds.includes(k) ? 0.5 : 1 },
-    start: { x: potRange.start, y: startZeroKinds.includes(k) ? 0.5 : 1 },
+    end: { x: potRange.end, y: endZeroKinds.includes(k) ? maxPressure : 0 },
+    start: { x: potRange.start, y: startZeroKinds.includes(k) ? maxPressure : 0 },
   };
 };
 
@@ -523,5 +528,6 @@ const potToSimul = (
   isSplittable: pot.isSplittable,
   places: pot.places,
   potentialId: pot.potentialId,
+  pressure: pot.pressure,
   queryId: pot.queryId,
 });
