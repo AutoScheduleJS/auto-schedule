@@ -1,5 +1,5 @@
 import { IQueryPositionDurationInternal, ITimeDurationInternal } from '@autoschedule/queries-fn';
-import { intersect, merge, substract } from 'intervals-fn';
+import { intersect, split, substract } from 'intervals-fn';
 import * as R from 'ramda';
 import { BehaviorSubject } from 'rxjs/BehaviorSubject';
 import { IConfig } from '../data-structures/config.interface';
@@ -101,6 +101,8 @@ export const computePressure = (
  * |   |   |    |     \|
  * need to compute pressure at 3, 4, 5
  * 3 & 4: compute press at specific point for pushed IRange & add pressure from terminal point.
+ *
+ * Instead of merging intersection, we have to merge when two intervals are overlapping
  */
 export const computePressureChunks = (
   config: IConfig,
@@ -134,29 +136,63 @@ const placeToPressureChunk = (pressure: number) => (place: IPotRange): IPressure
   };
 };
 
+/**
+ *
+ *           ___
+ * push:    |   |
+ *
+ * push:      /
+ *
+ *          | |||
+ *             _
+ *           _/ |
+ * result:  |
+ */
 const reducePlaceToPressureChunk = (
   acc: IPressureChunkMerge[],
   cur: IPressureChunkMerge
 ): IPressureChunkMerge[] => {
-  return merge(
-    (chunks: IPressureChunkMerge[]) => {
-      if (chunks.length === 1) {
-        return chunks[0];
-      }
-      return chunks.reduce((a, b) => {
-        const maxStart = a.start > b.start ? a : b;
-        const minEnd = a.end < b.end ? a : b;
-        return {
-          ...a,
-          originalRange: { start: maxStart.start, end: minEnd.end },
-          pressureEnd: getYfromStartEndLine(chunkToSeg(maxStart), minEnd.end) + minEnd.pressureEnd,
-          pressureStart:
-            getYfromStartEndLine(chunkToSeg(minEnd), maxStart.start) + maxStart.pressureStart,
-        };
-      });
-    },
-    [...acc, cur]
-  );
+  debugger;
+  const splittedChunks = split([cur.start, cur.end], acc);
+  const diff = cur.end - cur.start;
+  const seg = chunkToSeg(cur);
+  return splittedChunks.map(chunk => {
+    if (chunk.start < cur.start) {
+      return chunk;
+    }
+    if (chunk.start >= cur.end) {
+      return {
+        ...chunk,
+        pressureEnd: chunk.pressureEnd + diff,
+        pressureStart: chunk.pressureStart + diff,
+      };
+    }
+    return {
+      ...chunk,
+      pressureEnd: getYfromStartEndLine(seg, chunk.end) + chunk.pressureEnd,
+      pressureStart: getYfromStartEndLine(seg, chunk.start) + chunk.pressureStart,
+    };
+  });
+  // return adjustPressureChunk(
+  //   merge(
+  //     (chunks: IPressureChunkMerge[]) => {
+  //       if (chunks.length === 1) {
+  //         return chunks[0];
+  //       }
+  //       return chunks.reduce((a, b) => {
+  //         const maxStart = a.start > b.start ? a : b;
+  //         const minEnd = a.end < b.end ? a : b;
+  //         return {
+  //           ...a,
+  //           originalRange: { start: maxStart.start, end: minEnd.end },
+  //           pressureEnd: getYfromStartEndLine(chunkToSeg(maxStart), minEnd.end),
+  //           pressureStart: getYfromStartEndLine(chunkToSeg(minEnd), maxStart.start),
+  //         };
+  //       });
+  //     },
+  //     [...acc, cur]
+  //   )
+  // );
 };
 
 const chunkToSeg = (chunk: IPressureChunkMerge) => ({
@@ -341,9 +377,10 @@ const computePressureFactorFn = (potRange: IPotRange, maxPressure: number) => (x
     return 0;
   }
   return Math.min(0, Math.max(-maxPressure, getYfromStartEndLine(seg, x) * -1));
-}
+};
 
-const potRangeKindIs = (kind: 'start' | 'end') => (potRange: IPotRange): boolean => potRange.kind.startsWith(kind);
+const potRangeKindIs = (kind: 'start' | 'end') => (potRange: IPotRange): boolean =>
+  potRange.kind.startsWith(kind);
 
 const adjustAreaPressure = (pot: IPotentialitySimul, places: ReadonlyArray<IPotRange>) => (
   chunk: IAreaPressureChunk
@@ -352,14 +389,18 @@ const adjustAreaPressure = (pot: IPotentialitySimul, places: ReadonlyArray<IPotR
     const computePressureFactor = computePressureFactorFn(cur, pot.pressure);
     const endFactor = potRangeKindIs('end')(cur) ? computePressureFactor(acc.end) : 0;
     const startFactor = potRangeKindIs('start')(cur) ? computePressureFactor(acc.start) : 0;
-    console.log(`For: ${cur.kind}, with acc: ${acc.start}-${acc.end}: S:${startFactor};E:${endFactor}; queryId: ${pot.queryId}, dur: ${pot.duration}`);
+    console.log(
+      `For: ${cur.kind}, with acc: ${acc.start}-${
+        acc.end
+      }: S:${startFactor};E:${endFactor}; queryId: ${pot.queryId}, dur: ${pot.duration}`
+    );
     return {
       ...acc,
       pressureEnd: acc.pressureEnd + endFactor,
       pressureStart: acc.pressureStart + startFactor,
     };
   }, areaToPressureChunk(chunk));
-}
+};
 
 /**
  * Define fav points that will lower pressure
@@ -393,10 +434,10 @@ const computeContiguousPressureChunk = (
       const [startRange, endRange] = placeToStartEndRanges(place);
       const dividedChunks = intersect(placeToTinniest(place), chunks);
       const allResultChunks = R.unnest(dividedChunks.map(divideChunkByDuration(potential.duration)))
-      .filter(c => withinRange(startRange)(c.start) && withinRange(endRange)(c.end))
-      .map(rangeChunkIntersectin(chunks))
-      .filter(c => c != null && c.end - c.start >= potential.duration)
-      .map(chunk => adjustAreaPressure(potential, place)(chunk as IAreaPressureChunk));
+        .filter(c => withinRange(startRange)(c.start) && withinRange(endRange)(c.end))
+        .map(rangeChunkIntersectin(chunks))
+        .filter(c => c != null && c.end - c.start >= potential.duration)
+        .map(chunk => adjustAreaPressure(potential, place)(chunk as IAreaPressureChunk));
       if (allResultChunks.length < 2) {
         return allResultChunks[0];
       }
@@ -454,14 +495,16 @@ const rangeToMaterial = (toPlace: IPotentialityBase, chunk: IRange): IMaterial =
  * TODO: update areaPressure
  */
 const minimizeChunkToDuration = (chunk: IPressureChunk, duration: number): IRange => {
-  return chunk.pressureEnd >= chunk.pressureStart ? {
-    end: Math.min(chunk.start + duration, chunk.end),
-    start: chunk.start,
-  } : {
-   end: chunk.end ,
-   start: Math.max(chunk.end - duration, chunk.start),
-  }
- };
+  return chunk.pressureEnd >= chunk.pressureStart
+    ? {
+        end: Math.min(chunk.start + duration, chunk.end),
+        start: chunk.start,
+      }
+    : {
+        end: chunk.end,
+        start: Math.max(chunk.end - duration, chunk.start),
+      };
+};
 
 const placeAtomic = (toPlace: IPotentialitySimul, pressure: IPressureChunk[]): IMaterial[] => {
   const bestChunk = computeContiguousPressureChunk(toPlace, pressure);
@@ -483,10 +526,7 @@ const placeSplittableUnfold = (
   const headDuration = rangeToDuration(headChunk);
   const remainingDuration = toPlace.duration - materializedSpace;
   return [
-    rangeToMaterial(
-      toPlace,
-      minimizeChunkToDuration(headChunk, remainingDuration)
-    ),
+    rangeToMaterial(toPlace, minimizeChunkToDuration(headChunk, remainingDuration)),
     [Math.min(materializedSpace + headDuration, toPlace.duration), newChunks],
   ];
 };
