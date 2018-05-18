@@ -10,11 +10,7 @@ import {
   IPotentialityBase,
   IPotentialitySimul,
 } from '../data-structures/potentiality.interface';
-import {
-  IAreaPressureChunk,
-  IPressureChunk,
-  IPressureChunkMerge,
-} from '../data-structures/pressure-chunk.interface';
+import { IAreaPressureChunk, IPressureChunk } from '../data-structures/pressure-chunk.interface';
 import { IPotRange, IPotRangeKind, IRange } from '../data-structures/range.interface';
 import { atomicToPlaces } from './queries.flow';
 import {
@@ -119,20 +115,31 @@ export const computePressureChunks = (
   ).reduce(reducePlaceToPressureChunk, [
     {
       ...configToRange(config),
-      originalRange: configToRange(config),
       pressureEnd: 0,
       pressureStart: 0,
     },
   ]);
 };
 
-const placeToPressureChunk = (pressure: number) => (place: IPotRange): IPressureChunkMerge => {
+const placeToPressureChunk = (pressure: number) => (place: IPotRange): IPressureChunk => {
+  const pressureRangeFn = () => {
+    switch (place.kind) {
+      case 'start':
+        return { pressureStart: pressure, pressureEnd: 0 };
+      case 'end':
+        return { pressureStart: 0, pressureEnd: pressure };
+      case 'start-before':
+        return { pressureStart: 0, pressureEnd: pressure };
+      case 'end-after':
+        return { pressureStart: 0, pressureEnd: -pressure };
+      default:
+        return { pressureStart: 0, pressureEnd: 0 };
+    }
+  };
   return {
     end: place.end,
-    originalRange: { start: place.start, end: place.end },
-    pressureEnd: (place.kind === 'end-after' || place.kind === 'start') ? 0 : pressure,
-    pressureStart: (place.kind === 'start-before' || place.kind === 'end') ? 0 : pressure,
     start: place.start,
+    ...pressureRangeFn(),
   };
 };
 
@@ -149,10 +156,9 @@ const placeToPressureChunk = (pressure: number) => (place: IPotRange): IPressure
  * result:  |
  */
 const reducePlaceToPressureChunk = (
-  acc: IPressureChunkMerge[],
-  cur: IPressureChunkMerge
-): IPressureChunkMerge[] => {
-
+  acc: IPressureChunk[],
+  cur: IPressureChunk
+): IPressureChunk[] => {
   const splittedChunks = split([cur.start, cur.end], acc);
   const diff = cur.pressureEnd - cur.pressureStart;
   const seg = chunkToSeg(cur);
@@ -173,35 +179,15 @@ const reducePlaceToPressureChunk = (
       pressureStart: getYfromStartEndLine(seg, chunk.start) + chunk.pressureStart,
     };
   });
-  // return adjustPressureChunk(
-  //   merge(
-  //     (chunks: IPressureChunkMerge[]) => {
-  //       if (chunks.length === 1) {
-  //         return chunks[0];
-  //       }
-  //       return chunks.reduce((a, b) => {
-  //         const maxStart = a.start > b.start ? a : b;
-  //         const minEnd = a.end < b.end ? a : b;
-  //         return {
-  //           ...a,
-  //           originalRange: { start: maxStart.start, end: minEnd.end },
-  //           pressureEnd: getYfromStartEndLine(chunkToSeg(maxStart), minEnd.end),
-  //           pressureStart: getYfromStartEndLine(chunkToSeg(minEnd), maxStart.start),
-  //         };
-  //       });
-  //     },
-  //     [...acc, cur]
-  //   )
-  // );
 };
 
-const chunkToSeg = (chunk: IPressureChunkMerge) => ({
+const chunkToSeg = (chunk: IPressureChunk) => ({
   end: {
-    x: chunk.originalRange.end,
+    x: chunk.end,
     y: chunk.pressureEnd,
   },
   start: {
-    x: chunk.originalRange.start,
+    x: chunk.start,
     y: chunk.pressureStart,
   },
 });
@@ -389,11 +375,11 @@ const adjustAreaPressure = (pot: IPotentialitySimul, places: ReadonlyArray<IPotR
     const computePressureFactor = computePressureFactorFn(cur, pot.pressure);
     const endFactor = potRangeKindIs('end')(cur) ? computePressureFactor(acc.end) : 0;
     const startFactor = potRangeKindIs('start')(cur) ? computePressureFactor(acc.start) : 0;
-    console.log(
-      `For: ${cur.kind}, with acc: ${acc.start}-${
-        acc.end
-      }: S:${startFactor};E:${endFactor}; queryId: ${pot.queryId}, dur: ${pot.duration}`
-    );
+    // console.log(
+    //   `For: ${cur.kind}, with acc: ${acc.start}-${
+    //     acc.end
+    //   }: S:${startFactor};E:${endFactor}; queryId: ${pot.queryId}, dur: ${pot.duration}`
+    // );
     return {
       ...acc,
       pressureEnd: acc.pressureEnd + endFactor,

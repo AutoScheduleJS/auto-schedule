@@ -142,7 +142,7 @@ test('will compute simple pressure chunks', t => {
   validatePressure(t, pChunks[2], [0, 0]);
 });
 
-test.only('will compute pressure chunks with start/end-before/after', t => {
+test('will compute pressure chunks with start/end-before/after', t => {
   const config: IConfig = { startDate: 0, endDate: 10 };
   const myTbFn = tbFn(config);
   const pChunks = computePressureChunks(config, [
@@ -153,7 +153,6 @@ test.only('will compute pressure chunks with start/end-before/after', t => {
       1
     ),
   ]);
-  debugger;
   t.is(pChunks.length, 3);
   t.truthy(isEqual({ start: 0, end: 2 }, pChunks[0]));
   validatePressure(t, pChunks[0], [0, 1]);
