@@ -130,8 +130,8 @@ const placeToPressureChunk = (pressure: number) => (place: IPotRange): IPressure
   return {
     end: place.end,
     originalRange: { start: place.start, end: place.end },
-    pressureEnd: place.kind === 'end-after' ? 0 : pressure,
-    pressureStart: place.kind === 'start-before' ? 0 : pressure,
+    pressureEnd: (place.kind === 'end-after' || place.kind === 'start') ? 0 : pressure,
+    pressureStart: (place.kind === 'start-before' || place.kind === 'end') ? 0 : pressure,
     start: place.start,
   };
 };
@@ -152,9 +152,9 @@ const reducePlaceToPressureChunk = (
   acc: IPressureChunkMerge[],
   cur: IPressureChunkMerge
 ): IPressureChunkMerge[] => {
-  debugger;
+
   const splittedChunks = split([cur.start, cur.end], acc);
-  const diff = cur.end - cur.start;
+  const diff = cur.pressureEnd - cur.pressureStart;
   const seg = chunkToSeg(cur);
   return splittedChunks.map(chunk => {
     if (chunk.start < cur.start) {

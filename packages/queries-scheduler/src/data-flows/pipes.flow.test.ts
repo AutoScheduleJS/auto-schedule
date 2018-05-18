@@ -128,7 +128,7 @@ test('will compute pressure chunks when no potential', t => {
   validatePressure(t, pChunk[0], [0, 0]);
 });
 
-test.only('will compute simple pressure chunks', t => {
+test('will compute simple pressure chunks', t => {
   const config: IConfig = { startDate: 0, endDate: 10 };
   const pChunks = computePressureChunks(config, [
     potentialFactory({ min: 1, target: 1 }, [placeFactoryRange([1, 2])], 1),
@@ -142,7 +142,7 @@ test.only('will compute simple pressure chunks', t => {
   validatePressure(t, pChunks[2], [0, 0]);
 });
 
-test('will compute pressure chunks with start/end-before/after', t => {
+test.only('will compute pressure chunks with start/end-before/after', t => {
   const config: IConfig = { startDate: 0, endDate: 10 };
   const myTbFn = tbFn(config);
   const pChunks = computePressureChunks(config, [
@@ -153,6 +153,7 @@ test('will compute pressure chunks with start/end-before/after', t => {
       1
     ),
   ]);
+  debugger;
   t.is(pChunks.length, 3);
   t.truthy(isEqual({ start: 0, end: 2 }, pChunks[0]));
   validatePressure(t, pChunks[0], [0, 1]);
@@ -172,9 +173,9 @@ test('will simplify pressure chunks', t => {
   t.truthy(isEqual({ start: 0, end: 1 }, pChunkA[0]));
   validatePressure(t, pChunkA[0], [0, 0]);
   t.truthy(isEqual({ start: 1, end: 2 }, pChunkA[1]));
-  validatePressure(t, pChunkA[1], [3, 3]);
+  validatePressure(t, pChunkA[1], [1.5, 1.5]);
   t.truthy(isEqual({ start: 2, end: 3 }, pChunkA[2]));
-  validatePressure(t, pChunkA[2], [2, 2]);
+  validatePressure(t, pChunkA[2], [1, 1]);
   t.truthy(isEqual({ start: 3, end: 10 }, pChunkA[3]));
   validatePressure(t, pChunkA[3], [0, 0]);
 
@@ -183,7 +184,7 @@ test('will simplify pressure chunks', t => {
   ]);
   t.is(pChunkB.length, 1);
   t.truthy(isEqual({ start: 0, end: 10 }, pChunkB[0]));
-  validatePressure(t, pChunkB[0], [1.5, 1.5]);
+  validatePressure(t, pChunkB[0], [0.75, 0.75]);
 });
 
 test('will update potentials pressure', t => {
