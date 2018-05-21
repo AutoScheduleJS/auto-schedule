@@ -67,9 +67,9 @@ const placeToMaxDuration = (place: ReadonlyArray<IPotRange>): number => {
  */
 export const computePressure = (
   duration: ITimeDurationInternal,
-  places: ReadonlyArray<ReadonlyArray<IPotRange>>
+  places: ReadonlyArray<IRange>
 ): number => {
-  const space = R.sum(places.map(placeToMaxDuration));
+  const space = R.sum(places.map(r => r.end - r.start));
   return computePressureWithSpace(duration, space);
 };
 
@@ -104,13 +104,7 @@ export const computePressureChunks = (
   potentialities: IPotentiality[]
 ): IPressureChunk[] => {
   const results = sortByStart(
-    R.unnest(
-      potentialities.map(pot =>
-        R.unnest(pot.places)
-          .filter(filterPlaceForPressure)
-          .map(placeToPressureChunk(pot.pressure))
-      )
-    )
+    R.unnest(potentialities.map(pot => R.unnest(pot.places).filter(filterPlaceForPressure)))
   );
   return results.reduce(reducePlaceToPressureChunk, [
     {
@@ -119,28 +113,6 @@ export const computePressureChunks = (
       pressureStart: 0,
     },
   ]);
-};
-
-const placeToPressureChunk = (pressure: number) => (place: IPotRange): IPressureChunk => {
-  const pressureRangeFn = () => {
-    switch (place.kind) {
-      case 'start':
-        return { pressureStart: pressure, pressureEnd: 0 };
-      case 'end':
-        return { pressureStart: 0, pressureEnd: pressure };
-      case 'start-before':
-        return { pressureStart: 0, pressureEnd: pressure };
-      case 'end-after':
-        return { pressureStart: 0, pressureEnd: -pressure };
-      default:
-        return { pressureStart: 0, pressureEnd: 0 };
-    }
-  };
-  return {
-    end: place.end,
-    start: place.start,
-    ...pressureRangeFn(),
-  };
 };
 
 /**
@@ -208,9 +180,14 @@ export const updatePotentialsPressure = (
     masks.reduce((a, b) => intersect(b, a), [configToRange(config)]),
     materials
   );
-  const places = boundaries.map(bounds => atomicToPlaces(bounds, position));
-  debugger;
-  const pressure = computePressure(potentiality.duration, places);
+  const simplePlaces: IRange[] = boundaries.map(bounds => ({
+    end: position.end && position.end.max ? position.end.max : bounds.end,
+    start: position.start && position.start.min ? position.start.min : bounds.start,
+  }));
+  const pressure = computePressure(potentiality.duration, simplePlaces);
+  const places = boundaries.map(bounds =>
+    atomicToPlaces(configToRange(config), bounds, position, pressure)
+  );
   return {
     ...potentiality,
     places,

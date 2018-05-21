@@ -146,7 +146,6 @@ export const linkToMask = (materials: ReadonlyArray<IMaterial>, config: IConfig)
 };
 
 const specifyCorrectKind = (splitted: IPotRange[]): IPotRange[] => {
-  debugger;
   if (splitted.length === 1) {
     return splitted;
   }
@@ -165,13 +164,17 @@ const specifyCorrectKind = (splitted: IPotRange[]): IPotRange[] => {
  * But pressure should be [0-0.3] [0.4-1]
  */
 export const atomicToPlaces = (
+  refBound: IRange,
   bound: IRange,
-  position: IQueryPositionDurationInternal
+  position: IQueryPositionDurationInternal,
+  pressure: number,
 ): IPotRange[] => {
   const endRange: IPotRange[] = specifyCorrectKind(
     split<IPotRange>(position.end && position.end.target ? [position.end.target] : [], {
       end: propOrDefault(bound.end, position.end, ['max']) as number,
       kind: 'end',
+      pressureEnd: -1,
+      pressureStart: -1,
       start: propOrDefault(bound.start, position.end, ['min']) as number,
     })
   );
@@ -179,6 +182,8 @@ export const atomicToPlaces = (
     split<IPotRange>(position.start && position.start.target ? [position.start.target] : [], {
       end: propOrDefault(bound.end, position.start, ['max']) as number,
       kind: 'start',
+      pressureEnd: -1,
+      pressureStart: -1,
       start: propOrDefault(bound.start, position.start, ['min']) as number,
     })
   );
