@@ -74,7 +74,6 @@ export const computePressure = (
 };
 
 /**
- * TODO: use IRange with pressureStart - pressureEnd
  *    A   B   C    D   E
  *          ______
  * |_____|/|      |\|_____|
@@ -104,7 +103,7 @@ export const computePressureChunks = (
   config: IConfig,
   potentialities: IPotentiality[]
 ): IPressureChunk[] => {
-  return sortByStart(
+  const results = sortByStart(
     R.unnest(
       potentialities.map(pot =>
         R.unnest(pot.places)
@@ -112,7 +111,8 @@ export const computePressureChunks = (
           .map(placeToPressureChunk(pot.pressure))
       )
     )
-  ).reduce(reducePlaceToPressureChunk, [
+  );
+  return results.reduce(reducePlaceToPressureChunk, [
     {
       ...configToRange(config),
       pressureEnd: 0,
@@ -154,6 +154,11 @@ const placeToPressureChunk = (pressure: number) => (place: IPotRange): IPressure
  *             _
  *           _/ |
  * result:  |
+ *     ___
+ *    |   |
+ * p:        /
+ *     ___
+ * r: |   |  /
  */
 const reducePlaceToPressureChunk = (
   acc: IPressureChunk[],
@@ -204,6 +209,7 @@ export const updatePotentialsPressure = (
     materials
   );
   const places = boundaries.map(bounds => atomicToPlaces(bounds, position));
+  debugger;
   const pressure = computePressure(potentiality.duration, places);
   return {
     ...potentiality,
@@ -362,6 +368,9 @@ const computePressureFactorFn = (potRange: IPotRange, maxPressure: number) => (x
   if (!withinRange(potRange)(x)) {
     return 0;
   }
+  if (seg.start.x === seg.end.x) {
+    return maxPressure;
+  }
   return Math.min(0, Math.max(-maxPressure, getYfromStartEndLine(seg, x) * -1));
 };
 
@@ -418,7 +427,11 @@ const computeContiguousPressureChunk = (
   const areaPressures = potential.places
     .map(place => {
       const [startRange, endRange] = placeToStartEndRanges(place);
-      const dividedChunks = intersect(placeToTinniest(place), chunks);
+      const dividedChunks: IPressureChunk[] = R.ifElse(
+        R.isEmpty,
+        () => intersect([{ start: startRange.start, end: endRange.end }], chunks),
+        R.identity
+      )(intersect(placeToTinniest(place), chunks));
       const allResultChunks = R.unnest(dividedChunks.map(divideChunkByDuration(potential.duration)))
         .filter(c => withinRange(startRange)(c.start) && withinRange(endRange)(c.end))
         .map(rangeChunkIntersectin(chunks))
@@ -520,7 +533,11 @@ const sortByPressure = (chunks: ReadonlyArray<IPressureChunk>) =>
   [...chunks].sort((a, b) => computePressureArea(a) - computePressureArea(b));
 
 const placeSplittable = (toPlace: IPotentialitySimul, pressure: IPressureChunk[]): IMaterial[] => {
-  const sortedPressure = sortByPressure(pressure);
+  const sortedPressure = sortByPressure(
+    toPlace.places
+      .map(place => intersect(placeToRange(place), pressure))
+      .reduce((acc, cur) => [...acc, ...cur], [])
+  );
   return R.unfold(R.partial(placeSplittableUnfold, [toPlace]), [0, sortedPressure]).map(
     (material, i) => ({ ...material, splitId: i })
   );

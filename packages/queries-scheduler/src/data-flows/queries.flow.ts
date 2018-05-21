@@ -146,6 +146,7 @@ export const linkToMask = (materials: ReadonlyArray<IMaterial>, config: IConfig)
 };
 
 const specifyCorrectKind = (splitted: IPotRange[]): IPotRange[] => {
+  debugger;
   if (splitted.length === 1) {
     return splitted;
   }
@@ -155,6 +156,14 @@ const specifyCorrectKind = (splitted: IPotRange[]): IPotRange[] => {
   ];
 };
 
+/**
+ * When place has [0-100] with pressure [0-1] (target to 100)
+ * and mask is [30-40]
+ * it results in [0-30] with pressure [1-1]
+ * and [40-100] with pressure [0-1]
+ *
+ * But pressure should be [0-0.3] [0.4-1]
+ */
 export const atomicToPlaces = (
   bound: IRange,
   position: IQueryPositionDurationInternal

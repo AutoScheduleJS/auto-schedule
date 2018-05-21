@@ -41,7 +41,7 @@
     "ava": "^0.25.0",
     "concurrently": "^3.5.1",
     "esm": "^3.0.17",
-    "intervals-fn": "^2.8.3",
+    "intervals-fn": "^2.8.4",
     "moment": "^2.22.0",
     "nyc": "^11.6.0",
     "ramda": "^0.25.0",
