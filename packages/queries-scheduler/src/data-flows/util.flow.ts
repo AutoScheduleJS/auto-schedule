@@ -1,4 +1,5 @@
 import { IConfig } from '../data-structures/config.interface';
+import { IPressureChunk } from '../data-structures/pressure-chunk.interface';
 import { IRange } from '../data-structures/range.interface';
 
 export const asymptotTo = (limit: number) => (value: number) => value / (value + 1) * limit;
@@ -74,3 +75,16 @@ export const getYfromStartEndLine = (
 };
 
 export const withinRange = (range: IRange) => (nb: number) => nb >= range.start && nb <= range.end;
+
+export const chunkToSeg = (chunk: IPressureChunk) => ({
+  end: {
+    x: chunk.end,
+    y: chunk.pressureEnd,
+  },
+  start: {
+    x: chunk.start,
+    y: chunk.pressureStart,
+  },
+});
+
+export const rangeToIndexes = (range: IRange) => [range.start, range.end];

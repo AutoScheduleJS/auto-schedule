@@ -37,10 +37,12 @@ const potentialFactory = (
   };
 };
 
-const placeFactoryRange = (range: [number, number]): IPotRange[] => {
+const tupleToRange = (tuple: [number, number]) => ({ start: tuple[0], end: tuple[1] });
+
+const placeFactoryRange = (range: [number, number], pressure?: number): IPotRange[] => {
   return [
-    { end: range[1], start: range[0], kind: 'start' },
-    { end: range[1], start: range[0], kind: 'end' },
+    { end: range[1], start: range[0], kind: 'start', pressureStart: pressure || 1, pressureEnd: 0 },
+    { end: range[1], start: range[0], kind: 'end', pressureStart: 0, pressureEnd: pressure || 1 },
   ];
 };
 interface ITimeBoundaryTest {
@@ -48,13 +50,38 @@ interface ITimeBoundaryTest {
   min: number;
   target?: number;
 }
-const placeTipFn = (tb: ITimeBoundaryTest, kind: 'start' | 'end'): IPotRange[] => {
+const placeTipFn = (
+  tb: ITimeBoundaryTest,
+  kind: 'start' | 'end',
+  pressure?: number
+): IPotRange[] => {
+  const press = pressure || 1;
   return tb.target
     ? [
-        { kind: `${kind}-before` as IPotRangeKind, start: tb.min, end: tb.target },
-        { kind: `${kind}-after` as IPotRangeKind, start: tb.target, end: tb.max },
+        {
+          end: tb.target,
+          kind: `${kind}-before` as IPotRangeKind,
+          pressureEnd: press,
+          pressureStart: 0,
+          start: tb.min,
+        },
+        {
+          end: tb.max,
+          kind: `${kind}-after` as IPotRangeKind,
+          pressureEnd: -press,
+          pressureStart: 0,
+          start: tb.target,
+        },
       ]
-    : [{ kind: `${kind}` as IPotRangeKind, start: tb.min, end: tb.max }];
+    : [
+        {
+          end: tb.max,
+          kind: `${kind}` as IPotRangeKind,
+          pressureEnd: kind === 'end' ? press : 0,
+          pressureStart: kind === 'start' ? press : 0,
+          start: tb.min,
+        },
+      ];
 };
 
 const tbFn = (config: IConfig) => (tb: ITimeBoundary): ITimeBoundaryTest => {
@@ -85,8 +112,8 @@ const updatePotentialsPressureFromMats = (
 
 test('will correctly transforms IPotRange to IRange - simple', t => {
   const potRanges: IPotRange[] = [
-    { start: 0, end: 10, kind: 'start' },
-    { start: 0, end: 10, kind: 'end' },
+    { start: 0, end: 10, kind: 'start', pressureEnd:0, pressureStart:0 },
+    { start: 0, end: 10, kind: 'end', pressureEnd:0, pressureStart:0 },
   ];
   const range = placeToRange(potRanges);
   t.is(range.start, 0);
@@ -95,9 +122,9 @@ test('will correctly transforms IPotRange to IRange - simple', t => {
 
 test('will correctly transforms IPotRange to IRange - start - endTarget', t => {
   const potRanges: IPotRange[] = [
-    { start: 2, end: 10, kind: 'start' },
-    { start: 0, end: 4, kind: 'end-before' },
-    { start: 4, end: 7, kind: 'end-after' },
+    { start: 2, end: 10, kind: 'start', pressureEnd:0, pressureStart:0 },
+    { start: 0, end: 4, kind: 'end-before', pressureEnd:0, pressureStart:0 },
+    { start: 4, end: 7, kind: 'end-after', pressureEnd:0, pressureStart:0 },
   ];
   const range = placeToRange(potRanges);
   t.is(range.start, 2);
@@ -105,19 +132,11 @@ test('will correctly transforms IPotRange to IRange - start - endTarget', t => {
 });
 
 test('will compute pressure', t => {
-  let pot = potentialFactory({ min: 1, target: 1 }, [placeFactoryRange([0, 1])]);
-  t.is(computePressure(pot.duration, pot.places), 1);
-  pot = potentialFactory({ min: 0, target: 1 }, [placeFactoryRange([0, 1])]);
-  t.is(computePressure(pot.duration, pot.places), 0.5);
-  pot = potentialFactory({ min: 0, target: 1 }, [placeFactoryRange([0, 2])]);
-  t.is(computePressure(pot.duration, pot.places), 1 / 3);
-  pot = potentialFactory({ min: 1, target: 1 }, [placeFactoryRange([0, 2])]);
-  t.is(computePressure(pot.duration, pot.places), 2 / 3);
-  pot = potentialFactory({ min: 1, target: 1 }, [
-    placeFactoryRange([0, 1]),
-    placeFactoryRange([1, 2]),
-  ]);
-  t.is(computePressure(pot.duration, pot.places), 2 / 3);
+  t.is(computePressure({ min: 1, target: 1 }, [tupleToRange([0, 1])]), 1);
+  t.is(computePressure({ min: 0, target: 1 }, [tupleToRange([0, 1])]), 0.5);
+  t.is(computePressure({ min: 0, target: 1 }, [tupleToRange([0, 2])]), 1 / 3);
+  t.is(computePressure({ min: 1, target: 1 }, [tupleToRange([0, 2])]), 2 / 3);
+  t.is(computePressure({ min: 1, target: 1 }, [tupleToRange([0, 1]), tupleToRange([1, 2])]), 2 / 3);
 });
 
 test('will compute pressure chunks when no potential', t => {

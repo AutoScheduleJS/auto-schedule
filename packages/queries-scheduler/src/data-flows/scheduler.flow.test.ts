@@ -475,7 +475,7 @@ test('will correctly link queries', t => {
   );
 });
 
-test.only('will work when provider potential has multiple places', t => {
+test('will work when provider potential has multiple places', t => {
   const config: IConfig = { endDate: 50, startDate: 0 };
   const queries: Q.IQueryInternal[] = [
     Q.queryFactory(
@@ -504,8 +504,8 @@ test.only('will work when provider potential has multiple places', t => {
   return queriesToPipeline$(config)(testStateManager)(queries).pipe(
     map(result => {
       t.is(result.length, 3);
-      validateSE(t, result[0], [5, 9], 2);
-      validateSE(t, result[1], [9, 13], 3); // should be [1-5]
+      validateSE(t, result[0], [1, 5], 3); // should be [1-5]
+      validateSE(t, result[1], [5, 9], 2);
       validateSE(t, result[2], [45, 49], 1);
     })
   );

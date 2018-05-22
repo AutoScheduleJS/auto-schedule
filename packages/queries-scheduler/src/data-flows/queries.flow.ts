@@ -13,7 +13,7 @@ import { IConfig } from '../data-structures/config.interface';
 import { IMaterial } from '../data-structures/material.interface';
 import { IPotentiality } from '../data-structures/potentiality.interface';
 import { IPotRange, IRange } from '../data-structures/range.interface';
-import { propOrDefault } from './util.flow';
+import { chunkToSeg, getYfromStartEndLine, propOrDefault, rangeToIndexes } from './util.flow';
 
 type IQuery = IQueryInternal;
 type maskFn = (tm: IRange) => IRange[];
@@ -146,48 +146,75 @@ export const linkToMask = (materials: ReadonlyArray<IMaterial>, config: IConfig)
 };
 
 const specifyCorrectKind = (splitted: IPotRange[]): IPotRange[] => {
+  const firstP = splitted[0];
+  const pressure = firstP.pressureStart;
+  const sndP = splitted[1];
+  const kind = firstP.kind;
   if (splitted.length === 1) {
-    return splitted;
+    return [
+      {
+        ...firstP,
+        pressureEnd: kind === 'start' ? 0 : pressure,
+        pressureStart: kind === 'start' ? pressure : 0,
+      },
+    ];
   }
   return [
-    { ...splitted[0], kind: `${splitted[0].kind}-before` } as any,
-    { ...splitted[1], kind: `${splitted[1].kind}-after` },
+    { ...firstP, kind: `${firstP.kind}-before`, pressureEnd: pressure, pressureStart: 0 } as any,
+    { ...sndP, kind: `${sndP.kind}-after`, pressureEnd: -pressure, pressureStart: 0 },
   ];
 };
 
 /**
- * When place has [0-100] with pressure [0-1] (target to 100)
+ * When place has [0-100] with pressure [0-1] (target to 98 (duration: 2))
  * and mask is [30-40]
  * it results in [0-30] with pressure [1-1]
  * and [40-100] with pressure [0-1]
  *
- * But pressure should be [0-0.3] [0.4-1]
+ * But pressure should be [0-.3] [.4-1]
+ *
+ * refBound: [0-100]
+ * bound: [30-40]
+ * position: start target: 98 / end target: 100
+ * pressure: 1
+ *
+ * compute places for refBound, then, intersect with bound
  */
 export const atomicToPlaces = (
   refBound: IRange,
   bound: IRange,
   position: IQueryPositionDurationInternal,
-  pressure: number,
+  pressure: number
 ): IPotRange[] => {
   const endRange: IPotRange[] = specifyCorrectKind(
     split<IPotRange>(position.end && position.end.target ? [position.end.target] : [], {
-      end: propOrDefault(bound.end, position.end, ['max']) as number,
+      end: propOrDefault(refBound.end, position.end, ['max']) as number,
       kind: 'end',
-      pressureEnd: -1,
-      pressureStart: -1,
-      start: propOrDefault(bound.start, position.end, ['min']) as number,
+      pressureEnd: pressure,
+      pressureStart: pressure,
+      start: propOrDefault(refBound.start, position.end, ['min']) as number,
     })
   );
   const startRange: IPotRange[] = specifyCorrectKind(
     split<IPotRange>(position.start && position.start.target ? [position.start.target] : [], {
-      end: propOrDefault(bound.end, position.start, ['max']) as number,
+      end: propOrDefault(refBound.end, position.start, ['max']) as number,
       kind: 'start',
-      pressureEnd: -1,
-      pressureStart: -1,
-      start: propOrDefault(bound.start, position.start, ['min']) as number,
+      pressureEnd: pressure,
+      pressureStart: pressure,
+      start: propOrDefault(refBound.start, position.start, ['min']) as number,
     })
   );
-  return [...startRange, ...endRange];
+  const refPLaces = [...startRange, ...endRange];
+  return split(rangeToIndexes(bound), refPLaces)
+    .filter(splitted => splitted.start >= bound.start && splitted.end <= bound.end)
+    .map(newPlace => {
+      const seg = chunkToSeg(refPLaces.find(rPlace => rPlace.kind === newPlace.kind) as IPotRange);
+      return {
+        ...newPlace,
+        pressureEnd: getYfromStartEndLine(seg, newPlace.end),
+        pressureStart: getYfromStartEndLine(seg, newPlace.start),
+      };
+    });
 };
 
 export const queryToPotentiality = (query: IQuery): IPotentiality => {

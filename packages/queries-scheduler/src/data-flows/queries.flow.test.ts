@@ -23,8 +23,8 @@ const testPlaces = (t: TestContext, places: ReadonlyArray<IPotRange>, expected: 
   });
 };
 
-const tinyToPotRange = (obj: { s: number; e: number; k: any }): IPotRange => {
-  return { start: obj.s, end: obj.e, kind: obj.k };
+const tinyToPotRange = (obj: { s: number; e: number; k: any, ps?: number, pe?: number }): IPotRange => {
+  return { start: obj.s, end: obj.e, kind: obj.k, pressureEnd: obj.pe || 0, pressureStart: obj.ps || 0 };
 };
 
 test('will map nothing when no timeRestrictions', t => {
@@ -117,12 +117,13 @@ test('will map from month timeRestrictions when overlapping range', t => {
 
 test('will convert atomic to potentiality (start, duration)', t => {
   const config: IConfig = { startDate: 0, endDate: 10 };
+  const confRange = configToRange(config);
   const atomic: Q.IQueryInternal = Q.queryFactory(Q.positionHelper(Q.start(5), Q.duration(1)));
   const pots = {
     ...queryToPotentiality(atomic),
-    places: [atomicToPlaces(configToRange(config), atomic.position)],
+    places: [atomicToPlaces(confRange, confRange, atomic.position, 1)],
   };
-  t.false(pots.isSplittable);
+  t.falsy(pots.isSplittable);
   testPlaces(
     t,
     pots.places[0],
@@ -137,10 +138,11 @@ test('will convert atomic to potentiality (start, duration)', t => {
 
 test('will convert atomic to potentiality (start, end)', t => {
   const config: IConfig = { startDate: 0, endDate: 10 };
+  const confRange = configToRange(config);
   const atomic: Q.IQueryInternal = Q.queryFactory(Q.positionHelper(Q.start(5), Q.end(6)));
   const pots = {
     ...queryToPotentiality(atomic),
-    places: [atomicToPlaces(configToRange(config), atomic.position)],
+    places: [atomicToPlaces(confRange, confRange, atomic.position, 1)],
   };
 
   t.false(pots.isSplittable);
@@ -160,12 +162,13 @@ test('will convert atomic to potentiality (start, end)', t => {
 
 test('will convert and handle min/max without target', t => {
   const config: IConfig = { startDate: 0, endDate: 10 };
+  const confRange = configToRange(config);
   const atomic: Q.IQueryInternal = Q.queryFactory(
     Q.positionHelper(Q.start(undefined, 2, 6), Q.end(undefined, 4, 9), Q.duration(2, 1))
   );
   const pots = {
     ...queryToPotentiality(atomic),
-    places: [atomicToPlaces(configToRange(config), atomic.position)],
+    places: [atomicToPlaces(confRange, confRange, atomic.position, 1)],
   };
 
   t.false(pots.isSplittable);
@@ -180,12 +183,13 @@ test('will convert and handle min/max without target', t => {
 
 test('will convert with minimal start/end', t => {
   const config: IConfig = { startDate: 0, endDate: 10 };
+  const confRange = configToRange(config);
   const atomic: Q.IQueryInternal = Q.queryFactory(
     Q.positionHelper(Q.start(undefined, undefined, 4), Q.end(undefined, 6, undefined))
   );
   const pots = {
     ...queryToPotentiality(atomic),
-    places: [atomicToPlaces(configToRange(config), atomic.position)],
+    places: [atomicToPlaces(confRange, confRange, atomic.position, 1)],
   };
   t.false(pots.isSplittable);
   testPlaces(

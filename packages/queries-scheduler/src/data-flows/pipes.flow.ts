@@ -16,6 +16,7 @@ import { atomicToPlaces } from './queries.flow';
 import {
   areSameNumber,
   asymptotTo,
+  chunkToSeg,
   configToRange,
   fillLimitedArray,
   getYfromStartEndLine,
@@ -157,17 +158,6 @@ const reducePlaceToPressureChunk = (
     };
   });
 };
-
-const chunkToSeg = (chunk: IPressureChunk) => ({
-  end: {
-    x: chunk.end,
-    y: chunk.pressureEnd,
-  },
-  start: {
-    x: chunk.start,
-    y: chunk.pressureStart,
-  },
-});
 
 export const updatePotentialsPressure = (
   config: IConfig,
