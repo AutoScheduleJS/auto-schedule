@@ -13,7 +13,13 @@ import { IConfig } from '../data-structures/config.interface';
 import { IMaterial } from '../data-structures/material.interface';
 import { IPotentiality } from '../data-structures/potentiality.interface';
 import { IPotRange, IRange } from '../data-structures/range.interface';
-import { chunkToSeg, getYfromStartEndLine, propOrDefault, rangeToIndexes } from './util.flow';
+import {
+  chunkToSeg,
+  defaultIfNaN,
+  getYfromStartEndLine,
+  propOrDefault,
+  rangeToIndexes,
+} from './util.flow';
 
 type IQuery = IQueryInternal;
 type maskFn = (tm: IRange) => IRange[];
@@ -154,8 +160,8 @@ const specifyCorrectKind = (splitted: IPotRange[]): IPotRange[] => {
     return [
       {
         ...firstP,
-        pressureEnd: kind === 'start' ? 0 : pressure,
-        pressureStart: kind === 'start' ? pressure : 0,
+        pressureEnd: kind === 'start' ? pressure : 0,
+        pressureStart: kind === 'start' ? 0 : pressure,
       },
     ];
   }
@@ -204,17 +210,29 @@ export const atomicToPlaces = (
       start: propOrDefault(refBound.start, position.start, ['min']) as number,
     })
   );
-  const refPLaces = [...startRange, ...endRange];
-  return split(rangeToIndexes(bound), refPLaces)
+  const refPlaces = [...startRange, ...endRange];
+  return split(rangeToIndexes(bound), refPlaces)
     .filter(splitted => splitted.start >= bound.start && splitted.end <= bound.end)
-    .map(newPlace => {
-      const seg = chunkToSeg(refPLaces.find(rPlace => rPlace.kind === newPlace.kind) as IPotRange);
-      return {
-        ...newPlace,
-        pressureEnd: getYfromStartEndLine(seg, newPlace.end),
-        pressureStart: getYfromStartEndLine(seg, newPlace.start),
-      };
-    });
+    .map(adjustSplittedPlacePressure(refPlaces));
+};
+
+const adjustSplittedPlacePressure = (refPlaces: IPotRange[]) => (newPlace: IPotRange) => {
+  const originalPlace = refPlaces.find(rPlace => rPlace.kind === newPlace.kind) as IPotRange;
+  const seg = chunkToSeg(originalPlace);
+  if (seg.start === seg.end) {
+    return newPlace;
+  }
+  return {
+    ...newPlace,
+    pressureEnd:
+      originalPlace.end > newPlace.end
+        ? defaultIfNaN(newPlace.pressureEnd)(getYfromStartEndLine(seg, newPlace.end))
+        : newPlace.pressureEnd,
+    pressureStart:
+      originalPlace.start < newPlace.start
+        ? defaultIfNaN(newPlace.pressureStart)(getYfromStartEndLine(seg, newPlace.start))
+        : newPlace.pressureStart,
+  };
 };
 
 export const queryToPotentiality = (query: IQuery): IPotentiality => {

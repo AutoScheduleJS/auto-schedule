@@ -105,7 +105,9 @@ test('will throw ConflictError when conflict found', t => {
       t.pass();
       return Observable.empty();
     }),
-    map(_ => t.fail('should not pass'))
+    map(_ => {
+      t.fail('should not pass');
+    })
   );
 });
 

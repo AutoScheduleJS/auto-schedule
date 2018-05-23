@@ -88,3 +88,7 @@ export const chunkToSeg = (chunk: IPressureChunk) => ({
 });
 
 export const rangeToIndexes = (range: IRange) => [range.start, range.end];
+
+export const mapValue = <T, K>(mapFn: (a: T) => K) => (val: T) => mapFn(val);
+
+export const defaultIfNaN = (defaultVal: number) => mapValue<number, number>((x) => Number.isNaN(x) ? defaultVal : x);

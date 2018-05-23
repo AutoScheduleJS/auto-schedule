@@ -184,8 +184,8 @@ test('will compute pressure chunks with start/end-before/after', t => {
 test('will simplify pressure chunks', t => {
   const config: IConfig = { startDate: 0, endDate: 10 };
   const pChunkA = computePressureChunks(config, [
-    potentialFactory({ min: 0, target: 1 }, [placeFactoryRange([1, 2])], 0.5, 1),
-    potentialFactory({ min: 2, target: 2 }, [placeFactoryRange([1, 3])], 1, 2),
+    potentialFactory({ min: 0, target: 1 }, [placeFactoryRange([1, 2], 0.5)], 0.5, 1),
+    potentialFactory({ min: 2, target: 2 }, [placeFactoryRange([1, 3], 1)], 1, 2),
   ]);
   t.is(pChunkA.length, 4);
   t.truthy(isEqual({ start: 0, end: 1 }, pChunkA[0]));
@@ -198,7 +198,7 @@ test('will simplify pressure chunks', t => {
   validatePressure(t, pChunkA[3], [0, 0]);
 
   const pChunkB = computePressureChunks(config, [
-    potentialFactory({ min: 5, target: 10 }, [placeFactoryRange([0, 10])], 0.75, 3),
+    potentialFactory({ min: 5, target: 10 }, [placeFactoryRange([0, 10], 0.75)], 0.75, 3),
   ]);
   t.is(pChunkB.length, 1);
   t.truthy(isEqual({ start: 0, end: 10 }, pChunkB[0]));

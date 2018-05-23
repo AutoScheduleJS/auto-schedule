@@ -117,7 +117,6 @@ export const computePressureChunks = (
 };
 
 /**
- *
  *           ___
  * push:    |   |
  *
@@ -170,10 +169,11 @@ export const updatePotentialsPressure = (
     masks.reduce((a, b) => intersect(b, a), [configToRange(config)]),
     materials
   );
-  const simplePlaces: IRange[] = boundaries.map(bounds => ({
-    end: position.end && position.end.max ? position.end.max : bounds.end,
-    start: position.start && position.start.min ? position.start.min : bounds.start,
-  }));
+  const intrinsicPlace = {
+    end: position.end && position.end.max ? position.end.max : config.endDate,
+    start: position.start && position.start.min ? position.start.min : config.startDate,
+  }
+  const simplePlaces: IRange[] = intersect(intrinsicPlace, boundaries);
   const pressure = computePressure(potentiality.duration, simplePlaces);
   const places = boundaries.map(bounds =>
     atomicToPlaces(configToRange(config), bounds, position, pressure)
