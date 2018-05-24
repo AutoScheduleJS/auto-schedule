@@ -1,20 +1,24 @@
 import {
   IQueryInternal,
+  IQueryPositionDurationInternal,
   ITimeBoundary,
   ITimeDurationInternal,
   ITimeRestriction,
   RestrictionCondition,
 } from '@autoschedule/queries-fn';
-import { complement, intersect, unify } from 'intervals-fn';
+import { complement, intersect, split, unify } from 'intervals-fn';
 import * as moment from 'moment';
 import * as R from 'ramda';
-
 import { IConfig } from '../data-structures/config.interface';
 import { IMaterial } from '../data-structures/material.interface';
 import { IPotentiality } from '../data-structures/potentiality.interface';
-import { IRange } from '../data-structures/range.interface';
-
-import { propOrDefault } from './util.flow';
+import { IPotRange, IRange } from '../data-structures/range.interface';
+import {
+  chunkToSeg,
+  defaultIfNaN,
+  getYfromStartEndLine,
+  propOrDefault,
+} from './util.flow';
 
 type IQuery = IQueryInternal;
 type maskFn = (tm: IRange) => IRange[];
@@ -146,25 +150,108 @@ export const linkToMask = (materials: ReadonlyArray<IMaterial>, config: IConfig)
     .reduce((a, b) => intersect(a, b));
 };
 
-const atomicToChildren = (c: IConfig, q: IQuery) => {
+const specifyCorrectKind = (splitted: IPotRange[]): IPotRange[] => {
+  const firstP = splitted[0];
+  const pressure = firstP.pressureStart;
+  const sndP = splitted[1];
+  const kind = firstP.kind;
+  if (splitted.length === 1) {
+    return [
+      {
+        ...firstP,
+        pressureEnd: kind === 'start' ? pressure : 0,
+        pressureStart: kind === 'start' ? 0 : pressure,
+      },
+    ];
+  }
+  return [
+    { ...firstP, kind: `${firstP.kind}-before`, pressureEnd: pressure, pressureStart: 0 } as any,
+    { ...sndP, kind: `${sndP.kind}-after`, pressureEnd: -pressure, pressureStart: 0 },
+  ];
+};
+
+/**
+ * When place has [0-100] with pressure [0-1] (target to 98 (duration: 2))
+ * and mask is [30-40]
+ * it results in [0-30] with pressure [1-1]
+ * and [40-100] with pressure [0-1]
+ *
+ * But pressure should be [0-.3] [.4-1]
+ *
+ * refBound: [0-100]
+ * bound: [30-40]
+ * position: start target: 98 / end target: 100
+ * pressure: 1
+ *
+ * compute places for refBound, then, intersect with bound
+ */
+export const atomicToPlaces = (
+  refBound: IRange,
+  bound: IRange,
+  position: IQueryPositionDurationInternal,
+  pressure: number
+): IPotRange[] => {
+  const endRange: IPotRange[] = specifyCorrectKind(
+    split<IPotRange>(position.end && position.end.target ? [position.end.target] : [], {
+      end: propOrDefault(refBound.end, position.end, ['max']) as number,
+      kind: 'end',
+      pressureEnd: pressure,
+      pressureStart: pressure,
+      start: propOrDefault(refBound.start, position.end, ['min']) as number,
+    })
+  );
+  const startRange: IPotRange[] = specifyCorrectKind(
+    split<IPotRange>(position.start && position.start.target ? [position.start.target] : [], {
+      end: propOrDefault(refBound.end, position.start, ['max']) as number,
+      kind: 'start',
+      pressureEnd: pressure,
+      pressureStart: pressure,
+      start: propOrDefault(refBound.start, position.start, ['min']) as number,
+    })
+  );
+  return [...startRange, ...endRange].map(adjustSplittedPlacePressure(bound));
+};
+
+/**
+ * When stripped with bound, should conserve before/after potPlaces
+ * start-before: 0-3 ; start-after: 3-10
+ * bound: 4-7:
+ * result: start-before: 4-4 (cross pressure > pressure); start-after: 4-7
+ * bound: 0-2:
+ * result: start-before: 0-2 (0-cross pressure < pressure); start-after: 2-2
+ *
+ */
+const adjustSplittedPlacePressure = (bound: IRange) => (place: IPotRange): IPotRange => {
+  const seg = chunkToSeg(place);
+  const end = Math.min(bound.end, Math.max(place.end, bound.start));
+  const start = Math.min(bound.end, Math.max(place.start, bound.start));
+  const pressureEnd =
+    place.end > end
+      ? defaultIfNaN(place.pressureEnd)(getYfromStartEndLine(seg, end))
+      : place.pressureEnd;
+  const pressureStart =
+    place.start < start
+      ? defaultIfNaN(place.pressureStart)(getYfromStartEndLine(seg, start))
+      : place.pressureStart;
+
   return {
-    end: propOrDefault(c.endDate, q.position.end, ['max', 'target']) as number,
-    start: propOrDefault(c.startDate, q.position.start, ['min', 'target']) as number,
+    ...place,
+    end,
+    pressureEnd,
+    pressureStart,
+    start,
   };
 };
 
-export const atomicToPotentiality = (config: IConfig) => (query: IQuery): IPotentiality[] => {
+export const queryToPotentiality = (query: IQuery): IPotentiality => {
   const duration = atomicToDuration(query) as ITimeDurationInternal;
-  const place = atomicToChildren(config, query);
   const queryId = query.id;
-  return [
-    {
-      duration,
-      isSplittable: query.splittable,
-      places: [place],
-      potentialId: 0,
-      pressure: -1,
-      queryId,
-    },
-  ];
+  return {
+    duration,
+    isSplittable: query.splittable,
+    places: [],
+    potentialId: 0,
+    pressure: -1,
+    queryId,
+  };
 };

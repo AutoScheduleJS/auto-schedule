@@ -1,11 +1,10 @@
 import * as Q from '@autoschedule/queries-fn';
 import test from 'ava';
-
-import { queryToStatePotentials } from './main.flow';
-
 import { IConfig } from '../data-structures/config.interface';
+import { IPotRange } from '../data-structures/queries-scheduler.interface';
 import { ITransformSatisfaction } from '../data-structures/transform-satisfaction.interface';
 import { IUserstateCollection } from '../data-structures/userstate-collection.interface';
+import { queryToStatePotentials } from './main.flow';
 
 const shortConfig: IConfig = { startDate: 0, endDate: 5 };
 const mediumConfig: IConfig = { startDate: 0, endDate: 10 };
@@ -16,6 +15,13 @@ const shortQueryToStatePots = queryToStateDB(shortConfig);
 const mediumQueryToStatePots = queryToStateDB(mediumConfig);
 const largeQueryToStatePots = queryToStateDB(largeConfig);
 const hugeQueryToStatePots = queryToStateDB(hugeConfig);
+
+const placeFactory = (range: [number, number]): IPotRange[] => {
+  return [
+    { end: range[1], start: range[0], kind: 'start' },
+    { end: range[1], start: range[0], kind: 'end' },
+  ];
+};
 
 test('will return config when no needs', t => {
   const query = Q.queryFactory();
@@ -61,7 +67,11 @@ test('will place query near provider using insert quantity property', t => {
     Q.id(2),
     Q.transformsHelper([], [], [{ collectionName: 'col', doc: { response: '42' }, quantity: 3 }])
   );
-  const result = mediumQueryToStatePots([consumer, provider])(consumer, [], [{ end: 5, materialId: 0, queryId: 2, start: 4 }]);
+  const result = mediumQueryToStatePots([consumer, provider])(
+    consumer,
+    [],
+    [{ end: 5, materialId: 0, queryId: 2, start: 4 }]
+  );
   t.true(Array.isArray(result));
   t.is(result.length, 1);
   t.is(result[0].start, 5);
@@ -130,7 +140,7 @@ test("will throw when one need isn't satisfied but other are", t => {
         {
           ...Q.durationInternal(1),
           isSplittable: false,
-          places: [{ start: 2, end: 3 }],
+          places: [placeFactory([2, 3])],
           potentialId: 1,
           pressure: 1,
           queryId: 66,
@@ -173,7 +183,7 @@ test('will find space with matetial and potential', t => {
       {
         duration: { min: 2, target: 4 },
         isSplittable: false,
-        places: [{ end: 49, start: 45 }],
+        places: [placeFactory([45, 49])],
         potentialId: 0,
         pressure: 0.65,
         queryId: 1,
@@ -202,7 +212,7 @@ test('will find space where resource is available from potentiality', t => {
       {
         ...Q.durationInternal(1),
         isSplittable: false,
-        places: [{ end: 3, start: 2 }],
+        places: [placeFactory([2, 3])],
         potentialId: 1,
         pressure: 1,
         queryId: 66,
@@ -210,7 +220,7 @@ test('will find space where resource is available from potentiality', t => {
       {
         ...Q.durationInternal(1),
         isSplittable: false,
-        places: [{ start: 0, end: 2 }],
+        places: [placeFactory([0, 2])],
         potentialId: 2,
         pressure: 0.5,
         queryId: 33,
@@ -276,7 +286,7 @@ test("will throw if waiting update isn't necessary", t => {
         {
           ...Q.durationInternal(1),
           isSplittable: false,
-          places: [{ start: 2, end: 3 }],
+          places: [placeFactory([2, 3])],
           potentialId: 1,
           pressure: 1,
           queryId: 66,
@@ -312,7 +322,7 @@ test('will ignore non waiting output', t => {
       {
         ...Q.durationInternal(1),
         isSplittable: false,
-        places: [{ end: 3, start: 2 }],
+        places: [placeFactory([2, 3])],
         potentialId: 1,
         pressure: 1,
         queryId: 66,
@@ -348,7 +358,7 @@ test('will find space from two providers (potentials) with space between provide
       {
         ...Q.durationInternal(1),
         isSplittable: false,
-        places: [{ end: 3, start: 2 }],
+        places: [placeFactory([2, 3])],
         potentialId: 1,
         pressure: 1,
         queryId: 42,
@@ -356,7 +366,7 @@ test('will find space from two providers (potentials) with space between provide
       {
         ...Q.durationInternal(1),
         isSplittable: false,
-        places: [{ start: 6, end: 8 }],
+        places: [placeFactory([6, 8])],
         potentialId: 2,
         pressure: 0.5,
         queryId: 66,
@@ -392,7 +402,7 @@ test('will find space from two providers (potentials) without space between prov
       {
         ...Q.durationInternal(1),
         isSplittable: false,
-        places: [{ end: 4, start: 2 }],
+        places: [placeFactory([2, 4])],
         potentialId: 1,
         pressure: 0.5,
         queryId: 42,
@@ -400,7 +410,7 @@ test('will find space from two providers (potentials) without space between prov
       {
         ...Q.durationInternal(1),
         isSplittable: false,
-        places: [{ start: 1, end: 3 }],
+        places: [placeFactory([1, 3])],
         potentialId: 2,
         pressure: 0.5,
         queryId: 66,
@@ -432,7 +442,7 @@ test("will try to works without provider's need satisfied", t => {
       {
         ...Q.durationInternal(1),
         isSplittable: false,
-        places: [{ start: 1, end: 3 }],
+        places: [placeFactory([1, 3])],
         potentialId: 2,
         pressure: 0.5,
         queryId: 66,
@@ -466,7 +476,7 @@ test("will try to works without all prover's need satisfied", t => {
       {
         ...Q.durationInternal(1),
         isSplittable: false,
-        places: [{ start: 1, end: 3 }],
+        places: [placeFactory([1, 3])],
         potentialId: 2,
         pressure: 0.5,
         queryId: 66,
@@ -500,7 +510,7 @@ test('will find space from potentialities without simplifying result.', t => {
       {
         duration: { min: 4, target: 4 },
         isSplittable: false,
-        places: [{ end: 49, start: 37 }, { end: 35, start: 31 }, { end: 20, start: 16 }],
+        places: [placeFactory([37, 49]), placeFactory([31, 35]), placeFactory([16, 20])],
         potentialId: 0,
         pressure: 0.5,
         queryId: 1,
@@ -542,7 +552,7 @@ test('will find space thanks to update provider (potential)', t => {
       {
         ...Q.durationInternal(1),
         isSplittable: false,
-        places: [{ end: 4, start: 2 }],
+        places: [placeFactory([2, 4])],
         potentialId: 1,
         pressure: 0.5,
         queryId: 42,
@@ -612,7 +622,7 @@ test('will not try to satisfy its own needs', t => {
       {
         duration,
         isSplittable: false,
-        places: [{ end: 100, start: 0 }],
+        places: [placeFactory([0, 100])],
         potentialId: 0,
         pressure: 1,
         queryId: 1,
@@ -620,7 +630,7 @@ test('will not try to satisfy its own needs', t => {
       {
         duration,
         isSplittable: false,
-        places: [{ end: 98, start: 0 }],
+        places: [placeFactory([0, 98])],
         potentialId: 0,
         pressure: 1,
         queryId: 2,
@@ -653,7 +663,7 @@ test('will throw when insert more than necessary', t => {
         {
           ...Q.durationInternal(1),
           isSplittable: false,
-          places: [{ end: 2, start: 1 }, { end: 8, start: 7 }],
+          places: [placeFactory([1, 2]), placeFactory([7, 8])],
           potentialId: 1,
           pressure: 1,
           queryId: 1,
@@ -732,7 +742,7 @@ test('will find space where resource is lacking that the waiting output satisfie
       {
         ...Q.durationInternal(1),
         isSplittable: false,
-        places: [{ end: 5, start: 4 }],
+        places: [placeFactory([4, 5])],
         potentialId: 1,
         pressure: 1,
         queryId: 1,
@@ -740,7 +750,7 @@ test('will find space where resource is lacking that the waiting output satisfie
       {
         ...Q.durationInternal(1),
         isSplittable: false,
-        places: [{ end: 7, start: 6 }],
+        places: [placeFactory([6, 7])],
         potentialId: 1,
         pressure: 1,
         queryId: 2,
@@ -748,7 +758,7 @@ test('will find space where resource is lacking that the waiting output satisfie
       {
         ...Q.durationInternal(1),
         isSplittable: false,
-        places: [{ end: 11, start: 10 }],
+        places: [placeFactory([10, 11])],
         potentialId: 1,
         pressure: 1,
         queryId: 7,
@@ -756,7 +766,7 @@ test('will find space where resource is lacking that the waiting output satisfie
       {
         ...Q.durationInternal(1),
         isSplittable: false,
-        places: [{ end: 9, start: 8 }],
+        places: [placeFactory([8, 9])],
         potentialId: 1,
         pressure: 1,
         queryId: 1,
@@ -764,7 +774,7 @@ test('will find space where resource is lacking that the waiting output satisfie
       {
         ...Q.durationInternal(1),
         isSplittable: false,
-        places: [{ end: 1, start: 0 }],
+        places: [placeFactory([0, 1])],
         potentialId: 1,
         pressure: 1,
         queryId: 5,
@@ -772,7 +782,7 @@ test('will find space where resource is lacking that the waiting output satisfie
       {
         ...Q.durationInternal(1),
         isSplittable: false,
-        places: [{ end: 5, start: 2 }],
+        places: [placeFactory([2, 5])],
         potentialId: 1,
         pressure: 1,
         queryId: 6,
@@ -780,7 +790,7 @@ test('will find space where resource is lacking that the waiting output satisfie
       {
         ...Q.durationInternal(1),
         isSplittable: false,
-        places: [{ end: 4, start: 3 }],
+        places: [placeFactory([3, 4])],
         potentialId: 1,
         pressure: 1,
         queryId: 4,

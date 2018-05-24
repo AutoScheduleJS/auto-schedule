@@ -7,10 +7,14 @@
   "types": "es/index.d.ts",
   "scripts": {
     "build:test": "tsc -p tsconfig.build.json",
-    "ava": "ava build/**/*.test.js",
-    "test": "tslint -p ./ && npm run build:test && nyc --reporter=lcov npm run ava",
-    "test:codecov": "tslint -p ./ && npm run build:test && nyc npm run ava",
-    "prepare": "npm run build:test && npm run build:test -- -m es6 --outDir es"
+    "ava": "ava",
+    "ava:all": "ava build/**/*.test.js",
+    "test": "tslint -p ./ && npm run build:test && nyc --reporter=lcov npm run ava:all",
+    "test:codecov": "tslint -p ./ && npm run build:test && nyc npm run ava:all",
+    "prepare": "npm run build:test && npm run build:test -- -m es6 --outDir es",
+    "watch:ts": "npm run build:test -- -w",
+    "watch:ava": "npm run ava:all -- -w",
+    "watch:test": "concurrently -k -p \"[{name}]\" -n \"TypeScript,Ava\" -c \"blue.bold,magenta.bold\" \"npm run watch:ts\" \"npm run watch:ava\""
   },
   "repository": {
     "type": "git",
@@ -30,8 +34,6 @@
     "url": "https://github.com/AutoScheduleJS/queries-scheduler/issues"
   },
   "homepage": "https://github.com/AutoScheduleJS/queries-scheduler#readme",
-  "dependencies": {
-  },
   "devDependencies": {
     "@autoschedule/queries-fn": "^6.1.0",
     "@autoschedule/userstate-manager": "^3.0.2",
@@ -39,7 +41,7 @@
     "ava": "^0.25.0",
     "concurrently": "^3.5.1",
     "esm": "^3.0.17",
-    "intervals-fn": "^2.6.0",
+    "intervals-fn": "^2.8.4",
     "moment": "^2.22.0",
     "nyc": "^11.6.0",
     "ramda": "^0.25.0",
@@ -52,8 +54,8 @@
     }
   },
   "ava": {
-		"require": [
-			"esm"
-		]
-	}
+    "require": [
+      "esm"
+    ]
+  }
 }
