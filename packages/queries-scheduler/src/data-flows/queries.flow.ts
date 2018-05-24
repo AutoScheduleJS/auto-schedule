@@ -18,7 +18,6 @@ import {
   defaultIfNaN,
   getYfromStartEndLine,
   propOrDefault,
-  rangeToIndexes,
 } from './util.flow';
 
 type IQuery = IQueryInternal;
@@ -210,28 +209,37 @@ export const atomicToPlaces = (
       start: propOrDefault(refBound.start, position.start, ['min']) as number,
     })
   );
-  const refPlaces = [...startRange, ...endRange];
-  return split(rangeToIndexes(bound), refPlaces)
-    .filter(splitted => splitted.start >= bound.start && splitted.end <= bound.end)
-    .map(adjustSplittedPlacePressure(refPlaces));
+  return [...startRange, ...endRange].map(adjustSplittedPlacePressure(bound));
 };
 
-const adjustSplittedPlacePressure = (refPlaces: IPotRange[]) => (newPlace: IPotRange) => {
-  const originalPlace = refPlaces.find(rPlace => rPlace.kind === newPlace.kind) as IPotRange;
-  const seg = chunkToSeg(originalPlace);
-  if (seg.start === seg.end) {
-    return newPlace;
-  }
+/**
+ * When stripped with bound, should conserve before/after potPlaces
+ * start-before: 0-3 ; start-after: 3-10
+ * bound: 4-7:
+ * result: start-before: 4-4 (cross pressure > pressure); start-after: 4-7
+ * bound: 0-2:
+ * result: start-before: 0-2 (0-cross pressure < pressure); start-after: 2-2
+ *
+ */
+const adjustSplittedPlacePressure = (bound: IRange) => (place: IPotRange): IPotRange => {
+  const seg = chunkToSeg(place);
+  const end = Math.min(bound.end, Math.max(place.end, bound.start));
+  const start = Math.min(bound.end, Math.max(place.start, bound.start));
+  const pressureEnd =
+    place.end > end
+      ? defaultIfNaN(place.pressureEnd)(getYfromStartEndLine(seg, end))
+      : place.pressureEnd;
+  const pressureStart =
+    place.start < start
+      ? defaultIfNaN(place.pressureStart)(getYfromStartEndLine(seg, start))
+      : place.pressureStart;
+
   return {
-    ...newPlace,
-    pressureEnd:
-      originalPlace.end > newPlace.end
-        ? defaultIfNaN(newPlace.pressureEnd)(getYfromStartEndLine(seg, newPlace.end))
-        : newPlace.pressureEnd,
-    pressureStart:
-      originalPlace.start < newPlace.start
-        ? defaultIfNaN(newPlace.pressureStart)(getYfromStartEndLine(seg, newPlace.start))
-        : newPlace.pressureStart,
+    ...place,
+    end,
+    pressureEnd,
+    pressureStart,
+    start,
   };
 };
 

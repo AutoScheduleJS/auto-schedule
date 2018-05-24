@@ -17,9 +17,9 @@ import { configToRange } from './util.flow';
 const testPlaces = (t: TestContext, places: ReadonlyArray<IPotRange>, expected: IPotRange[]) => {
   t.true(places.length >= 2);
   places.forEach((place, i) => {
+    t.is(place.kind, expected[i].kind, `for: ${i}`);
     t.is(place.end, expected[i].end, `for: ${i}`);
     t.is(place.start, expected[i].start, `for: ${i}`);
-    t.is(place.kind, expected[i].kind, `for: ${i}`);
   });
 };
 
@@ -136,6 +136,27 @@ test('will convert atomic to potentiality (start, duration)', t => {
   t.is(pots.duration.target, 1);
 });
 
+test('will convert atomic to potentiality (end, duration)', t => {
+  const config: IConfig = { startDate: 0, endDate: 10 };
+  const confRange = configToRange(config);
+  const atomic: Q.IQueryInternal = Q.queryFactory(Q.positionHelper(Q.end(6, 2, 8), Q.duration(1)));
+  const pots = {
+    ...queryToPotentiality(atomic),
+    places: [atomicToPlaces(confRange, confRange, atomic.position, 1)],
+  };
+  t.falsy(pots.isSplittable);
+  testPlaces(
+    t,
+    pots.places[0],
+    [
+      { s: 0, e: 10, k: 'start' },
+      { s: 2, e: 6, k: 'end-before' },
+      { s: 6, e: 8, k: 'end-after' },
+    ].map(tinyToPotRange)
+  );
+  t.is(pots.duration.target, 1);
+});
+
 test('will convert atomic to potentiality (start, end)', t => {
   const config: IConfig = { startDate: 0, endDate: 10 };
   const confRange = configToRange(config);
@@ -158,6 +179,30 @@ test('will convert atomic to potentiality (start, end)', t => {
   );
   t.is(pots.duration.target, 1);
   t.is(pots.duration.min, 1);
+});
+
+test('will convert atomic to pot (start, end) with actual range smaller than intrinsic range', t => {
+  const config: IConfig = { startDate: 0, endDate: 10 };
+  const confRange = configToRange(config);
+  const atomic: Q.IQueryInternal = Q.queryFactory(Q.positionHelper(Q.start(3), Q.end(6, 6, 6)));
+  const pots = {
+    ...queryToPotentiality(atomic),
+    places: [atomicToPlaces(confRange, { end: 7, start: 4 }, atomic.position, 1)],
+  };
+
+  t.false(pots.isSplittable);
+  t.true(pots.places[0].length === 3);
+  testPlaces(
+    t,
+    pots.places[0],
+    [
+      { s: 4, e: 4, k: 'start-before' },
+      { s: 4, e: 7, k: 'start-after' },
+      { s: 6, e: 6, k: 'end' }
+    ].map(tinyToPotRange)
+  );
+  t.is(pots.duration.target, 3);
+  t.is(pots.duration.min, 3);
 });
 
 test('will convert and handle min/max without target', t => {
